@@ -1323,7 +1323,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy).to(device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:
@@ -1630,6 +1630,7 @@ if __name__ == '__main__':
     parser.add_argument('--init_representation', type=str, choices=['GIC', 'ARGVA', 'GAE', 'VGAE'])
 
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
+    parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
