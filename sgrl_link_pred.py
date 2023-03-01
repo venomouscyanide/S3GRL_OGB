@@ -46,6 +46,8 @@ from tuned_SIGN import TunedSIGN
 from utils import get_pos_neg_edges, extract_enclosing_subgraphs, construct_pyg_graph, k_hop_subgraph, do_edge_split, \
     Logger, AA, CN, PPR, calc_ratio_helper, create_rw_cache
 
+import numpy as np
+
 warnings.simplefilter('ignore', SparseEfficiencyWarning)
 warnings.simplefilter('ignore', FutureWarning)
 warnings.simplefilter('ignore', UserWarning)
@@ -190,17 +192,18 @@ class SEALDataset(InMemoryDataset):
                               self.args.dataset, self.args.seed)
             exit()
 
+        verbose = True
         if not self.pairwise:
             print("Setting up Positive Subgraphs")
             pos_list = extract_enclosing_subgraphs(
                 pos_edge, A, self.data.x, 1, self.num_hops, self.node_label,
                 self.ratio_per_hop, self.max_nodes_per_hop, self.directed, A_csc, rw_kwargs, sign_kwargs,
-                powers_of_A=powers_of_A, data=self.data)
+                powers_of_A=powers_of_A, data=self.data, verbose=verbose)
             print("Setting up Negative Subgraphs")
             neg_list = extract_enclosing_subgraphs(
                 neg_edge, A, self.data.x, 0, self.num_hops, self.node_label,
                 self.ratio_per_hop, self.max_nodes_per_hop, self.directed, A_csc, rw_kwargs, sign_kwargs,
-                powers_of_A=powers_of_A, data=self.data)
+                powers_of_A=powers_of_A, data=self.data, verbose=verbose)
             torch.save(self.collate(pos_list + neg_list), self.processed_paths[0])
             del pos_list, neg_list
         else:
@@ -208,14 +211,14 @@ class SEALDataset(InMemoryDataset):
                 pos_list = extract_enclosing_subgraphs(
                     pos_edge, A, self.data.x, 1, self.num_hops, self.node_label,
                     self.ratio_per_hop, self.max_nodes_per_hop, self.directed, A_csc, rw_kwargs, sign_kwargs,
-                    powers_of_A=powers_of_A, data=self.data)
+                    powers_of_A=powers_of_A, data=self.data, verbose=verbose)
                 torch.save(self.collate(pos_list), self.processed_paths[0])
                 del pos_list
             else:
                 neg_list = extract_enclosing_subgraphs(
                     neg_edge, A, self.data.x, 0, self.num_hops, self.node_label,
                     self.ratio_per_hop, self.max_nodes_per_hop, self.directed, A_csc, rw_kwargs, sign_kwargs,
-                    powers_of_A=powers_of_A, data=self.data)
+                    powers_of_A=powers_of_A, data=self.data, verbose=verbose)
                 torch.save(self.collate(neg_list), self.processed_paths[0])
                 del neg_list
 
@@ -265,6 +268,9 @@ class SEALDynamicDataset(Dataset):
             self.links = torch.cat([pos_edge, neg_edge], 1).t().tolist()
             self.labels = [1] * pos_edge.size(1) + [0] * neg_edge.size(1)
 
+        self.cached_data = [0] * len(self.links)
+        self.use_cache = False
+
         if self.use_coalesce:  # compress mutli-edge into edge with weight
             self.data.edge_index, self.data.edge_weight = coalesce(
                 self.data.edge_index, self.data.edge_weight,
@@ -284,28 +290,55 @@ class SEALDynamicDataset(Dataset):
             self.A_csc = None
 
         self.unique_nodes = {}
+        self.cached_pos_rws = None
+        self.cached_neg_rws = None
         if self.rw_kwargs.get('M'):
             print("Start caching random walk unique nodes")
-            for link in self.links:
-                rw_M = self.rw_kwargs.get('M')
-                starting_nodes = []
-                [starting_nodes.extend(link) for _ in range(rw_M)]
-                start = torch.tensor(starting_nodes, dtype=torch.long, device=device)
-                rw = self.sparse_adj.random_walk(start.flatten(), self.rw_kwargs.get('m'))
-                self.unique_nodes[tuple(link)] = torch.unique(rw.flatten()).tolist()
+            # if in dynamic ScaLed mode, need to cache the unique nodes of random walks before get() due to below error
+            # RuntimeError: Cannot re-initialize CUDA in forked subprocess.
+            # To use CUDA with multiprocessing, you must use the 'spawn' start method
+            if self.rw_kwargs.get('m') and self.args.optimize_sign and self.sign_type == "SuP":
+                # currently only cache for flows involving SuP + Optimized using the SIGN + ScaLed flow
+                self.cached_pos_rws = create_rw_cache(self.sparse_adj, pos_edge, self.device, self.rw_kwargs['m'],
+                                                      self.rw_kwargs['M'])
+                self.cached_neg_rws = create_rw_cache(self.sparse_adj, neg_edge, self.device, self.rw_kwargs['m'],
+                                                      self.rw_kwargs['M'])
+            else:
+                for link in self.links:
+                    rw_M = self.rw_kwargs.get('M')
+                    starting_nodes = []
+                    [starting_nodes.extend(link) for _ in range(rw_M)]
+                    start = torch.tensor(starting_nodes, dtype=torch.long, device=device)
+                    rw = self.sparse_adj.random_walk(start.flatten(), self.rw_kwargs.get('m'))
+                    self.unique_nodes[tuple(link)] = torch.unique(rw.flatten()).tolist()
+
             print("Finish caching random walk unique nodes")
 
         self.powers_of_A = []
         if self.args.model == 'SIGN':
             if self.sign_type == 'SoP':
+
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
-                dense_adj = to_dense_adj(edge_index).reshape([num_nodes, num_nodes])
-                self.powers_of_A = [self.A]
-                for sign_k in range(2, self.args.sign_k + 1):
-                    dense_adj_power = torch.linalg.matrix_power(dense_adj, sign_k)
-                    self.powers_of_A.append(ssp.csr_matrix(dense_adj_power))
+                row, col = edge_index
+                adj_t = SparseTensor(row=row, col=col,
+                                     sparse_sizes=(num_nodes, num_nodes)
+                                     )
+
+                deg = adj_t.sum(dim=1).to(torch.float)
+                deg_inv_sqrt = deg.pow(-0.5)
+                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+                adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+
+                print("Begin taking powers of A")
+                self.powers_of_A = [adj_t]
+                for _ in tqdm(range(2, self.args.sign_k + 1), ncols=70):
+                    self.powers_of_A += [adj_t @ self.powers_of_A[-1]]
+
+                if not getattr(self.args, 'optimize_sign'):
+                    for index in range(len(self.powers_of_A)):
+                        self.powers_of_A[index] = ssp.csr_matrix(self.powers_of_A[index].to_dense())
 
     def __len__(self):
         return len(self.links)
@@ -313,13 +346,14 @@ class SEALDynamicDataset(Dataset):
     def len(self):
         return self.__len__()
 
+    def set_use_cache(self, flag, id):
+        self.use_cache = flag
+        print(f"Updated {id} loader use_cache to {flag}")
+
     def get(self, idx):
-        if self.args.model == 'SIGN':
-            raise NotImplementedError("SoP and PoS (plus) support in dynamic mode is not implemented (yet)")
-
-        src, dst = self.links[idx]
-        y = self.labels[idx]
-
+        if self.use_cache:
+            return self.cached_data[idx]
+        verbose = False
         rw_kwargs = {
             "rw_m": self.rw_kwargs.get('m'),
             "rw_M": self.rw_kwargs.get('M'),
@@ -329,75 +363,35 @@ class SEALDynamicDataset(Dataset):
             "data": self.data,
             "unique_nodes": self.unique_nodes,
             "node_label": self.node_label,
-        }
+            "cached_pos_rws": self.cached_pos_rws,
+            "cached_neg_rws": self.cached_neg_rws,
 
+        }
         sign_kwargs = {}
         if self.args.model == 'SIGN':
+            sign_k = self.args.sign_k
+            sign_type = self.sign_type
+            sign_kwargs.update({
+                "sign_k": sign_k,
+                "use_feature": self.use_feature,
+                "sign_type": sign_type,
+                "optimize_sign": self.args.optimize_sign,
+                "k_heuristic": self.args.k_heuristic,
+                "k_node_set_strategy": self.args.k_node_set_strategy,
+            })
             if not self.rw_kwargs.get('m'):
-                if not self.powers_of_A:
-                    # PoS flow
-
-                    # debug code with graphistry
-                    # networkx_G = to_networkx(data)  # the full graph
-                    # graphistry.bind(source='src', destination='dst', node='nodeid').plot(networkx_G)
-                    # check against the nodes that is received in tmp before the relabeling occurs
-
-                    tmp = k_hop_subgraph(src, dst, self.num_hops, self.A, self.ratio_per_hop,
-                                         self.max_nodes_per_hop, node_features=self.data.x,
-                                         y=y, directed=self.directed, A_csc=self.A_csc)
-
-                    sign_pyg_kwargs = {
-                        'use_feature': self.use_feature,
-                    }
-
-                    data = construct_pyg_graph(*tmp, self.node_label, sign_pyg_kwargs)
-
-                    sign_t = TunedSIGN(self.args.sign_k)
-                    data = sign_t(data, self.args.sign_k)
-
-                else:
-                    # SoP flow
-
-                    # debug code with graphistry
-                    # networkx_G = to_networkx(data)  # the full graph
-                    # graphistry.bind(source='src', destination='dst', node='nodeid').plot(networkx_G)
-                    # check against the nodes that is received in tmp before the relabeling occurs
-
-                    pos_data_list = []
-                    for index, power_of_a in enumerate(self.powers_of_A, start=1):
-                        tmp = k_hop_subgraph(src, dst, self.num_hops, power_of_a, self.ratio_per_hop,
-                                             self.max_nodes_per_hop, node_features=self.data.x,
-                                             y=y, directed=self.directed, A_csc=self.A_csc)
-                        sign_pyg_kwargs = {
-                            'use_feature': self.use_feature,
-                        }
-
-                        data = construct_pyg_graph(*tmp, self.node_label, sign_pyg_kwargs)
-                        pos_data_list.append(data)
-
-                    sign_t = TunedSIGN(self.args.sign_k)
-                    data = sign_t.SoP_data_creation(pos_data_list)
-
-
+                rw_kwargs = None
             else:
-                rw_kwargs.update({'sign': True})
-                data = k_hop_subgraph(src, dst, self.num_hops, self.A, self.ratio_per_hop,
-                                      self.max_nodes_per_hop, node_features=self.data.x,
-                                      y=y, directed=self.directed, A_csc=self.A_csc, rw_kwargs=rw_kwargs)
-                sign_t = TunedSIGN(self.args.sign_k)
-                data = sign_t(data, self.args.sign_k)
+                rw_kwargs.update({"sign": True})
+        y = self.labels[idx]
+        link_index = torch.tensor([[self.links[idx][0]], [self.links[idx][1]]])
 
-        else:
-            if not rw_kwargs['rw_m']:
-                # SEAL flow
-                tmp = k_hop_subgraph(src, dst, self.num_hops, self.A, self.ratio_per_hop,
-                                     self.max_nodes_per_hop, node_features=self.data.x,
-                                     y=y, directed=self.directed, A_csc=self.A_csc)
-                data = construct_pyg_graph(*tmp, self.node_label, sign_kwargs)
-            else:
-                data = k_hop_subgraph(src, dst, self.num_hops, self.A, self.ratio_per_hop,
-                                      self.max_nodes_per_hop, node_features=self.data.x,
-                                      y=y, directed=self.directed, A_csc=self.A_csc, rw_kwargs=rw_kwargs)
+        data = extract_enclosing_subgraphs(
+            link_index, self.A, self.data.x, y, self.num_hops, self.node_label,
+            self.ratio_per_hop, self.max_nodes_per_hop, self.directed, self.A_csc, rw_kwargs, sign_kwargs,
+            powers_of_A=self.powers_of_A, data=self.data, verbose=verbose)[0]
+        if self.args.cache_dynamic:
+            self.cached_data[idx] = data
 
         return data
 
@@ -826,6 +820,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if args.dataset.startswith('ogbl'):
         dataset = PygLinkPropPredDataset(name=args.dataset, transform=NormalizeFeatures())
         split_edge = dataset.get_edge_split()
+        if args.dataset == 'ogbl-ppa':
+            dataset.data.x = dataset.data.x.type(torch.FloatTensor)
         data = dataset[0]
 
     elif args.dataset.startswith('ogbl-vessel'):
@@ -955,12 +951,47 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     time_for_prep_start = default_timer()
     init_features = args.init_features
+
+    if args.dataset.startswith('ogbl-citation'):
+        args.eval_metric = 'mrr'
+        directed = True
+    elif args.dataset.startswith('ogbl-vessel'):
+        args.eval_metric = 'rocauc'
+        directed = False
+    elif args.dataset.startswith('ogbl'):
+        args.eval_metric = 'hits'
+        directed = False
+    else:  # assume other datasets are undirected
+        args.eval_metric = 'auc'
+        directed = False
+
+    if args.use_valedges_as_input:
+        val_edge_index = split_edge['valid']['edge'].t()
+        if not directed:
+            val_edge_index = to_undirected(val_edge_index)
+        data.edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
+        split_edge['train']['edge'] = data.edge_index.t()
+        try:
+            if torch.any(data.edge_weight):
+                val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
+                data.edge_weight = torch.cat([data.edge_weight, val_edge_weight], 0)
+        except Exception as e:
+            print(str(e), "passing edge weight setting")
+
     if init_features:
         print(f"Init features using: {init_features}")
 
     if init_features == "degree":
-        one_hot = OneHotDegree(max_degree=1024)
-        data = one_hot(data)
+        import torch.nn.functional as F
+        from torch_geometric.utils import degree
+        idx, x = data.edge_index[0], data.x
+        deg = degree(idx, data.num_nodes, dtype=torch.long)
+        deg = F.one_hot(deg, num_classes=max(deg) + 1).to(torch.float)
+        data.x = deg
+    elif init_features == "ones":
+        data.x = torch.ones(size=(data.num_nodes, args.hidden_channels))
+    elif init_features == "zeros":
+        data.x = torch.zeros(size=(data.num_nodes, args.hidden_channels))
     elif init_features == "eye":
         data.x = torch.eye(data.num_nodes)
     elif init_features == "n2v":
@@ -997,35 +1028,19 @@ def run_sgrl_learning(args, device, hypertuning=False):
         else:
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
 
-    if init_representation or init_features:
+    if init_representation or init_features or args.use_feature:
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
 
-    if args.dataset.startswith('ogbl-citation'):
-        args.eval_metric = 'mrr'
-        directed = True
-    elif args.dataset.startswith('ogbl-vessel'):
-        args.eval_metric = 'rocauc'
-        directed = False
-    elif args.dataset.startswith('ogbl'):
-        args.eval_metric = 'hits'
-        directed = False
-    else:  # assume other datasets are undirected
-        args.eval_metric = 'auc'
-        directed = False
-
-    if args.use_valedges_as_input:
-        val_edge_index = split_edge['valid']['edge'].t()
-        if not directed:
-            val_edge_index = to_undirected(val_edge_index)
-        data.edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
-        val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
-        data.edge_weight = torch.cat([data.edge_weight, val_edge_weight], 0)
-
     evaluator = None
     if args.dataset.startswith('ogbl'):
         evaluator = Evaluator(name=args.dataset)
+    elif args.dataset.lower() in ['cora', 'pubmed', 'citeseer']:
+        evaluator = Evaluator('ogbl-collab')
+        evaluator.K = 100
+        args.eval_metric = 'hits'
+
     if args.eval_metric == 'hits':
         loggers = {
             'Hits@20': Logger(args.runs, args),
@@ -1386,9 +1401,22 @@ def run_sgrl_learning(args, device, hypertuning=False):
         for epoch in range(start_epoch, start_epoch + args.epochs):
             if args.profile:
                 # this gives the stats for exactly one training epoch
+                if epoch == 1 and args.dynamic_train and args.cache_dynamic:
+                    train_loader.num_workers = 0
+                if epoch == 1 and args.dynamic_val and args.cache_dynamic:
+                    val_loader.num_workers = 0
+                if epoch == 1 and args.dynamic_test and args.cache_dynamic:
+                    test_loader.num_workers = 0
                 loss, stats = profile_train(model, train_loader, optimizer, device, emb, train_dataset, args)
                 all_stats.append(stats)
             else:
+                if epoch == 1 and args.dynamic_train and args.cache_dynamic:
+                    train_loader.num_workers = 0
+                if epoch == 1 and args.dynamic_val and args.cache_dynamic:
+                    val_loader.num_workers = 0
+                if epoch == 1 and args.dynamic_test and args.cache_dynamic:
+                    test_loader.num_workers = 0
+
                 if not args.pairwise:
                     time_start_for_train_epoch = default_timer()
                     loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args)
@@ -1426,6 +1454,17 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         with open(log_file, 'a') as f:
                             print(key, file=f)
                             print(to_print, file=f)
+            if epoch == 1 and args.dynamic_train and args.cache_dynamic:
+                train_loader.dataset.set_use_cache(True, id="train")
+                train_loader.num_workers = args.num_workers
+
+            if epoch == 1 and args.dynamic_val and args.cache_dynamic:
+                val_loader.dataset.set_use_cache(True, id="val")
+                val_loader.dataset.num_workers = args.num_workers
+
+            if epoch == 1 and args.dynamic_test and args.cache_dynamic:
+                test_loader.dataset.set_use_cache(True, id="test")
+                test_loader.dataset.num_workers = args.num_workers
 
         if args.profile:
             extra_identifier = ''
@@ -1463,7 +1502,20 @@ def run_sgrl_learning(args, device, hypertuning=False):
             shutil.rmtree(args.res_dir)
 
     print("fin.")
-    return total_prep_time, best_test_scores[0], all_train_times, all_inference_times, total_params
+
+    if args.dataset == 'ogbl-collab':
+        best = best_test_scores[1]  # hits@50
+    elif args.dataset == 'ogbl-ddi':
+        best = best_test_scores[0]  # hits@20
+    elif args.dataset == 'ogbl-ppa':
+        best = best_test_scores[2]  # hits@100
+    elif args.dataset == 'ogbl-citation2':
+        best = best_test_scores[0]  # MRR
+    elif args.dataset == 'ogbl-vessel':
+        best = best_test_scores[0]  # aucroc
+    else:
+        best = best_test_scores[0]  # auc
+    return total_prep_time, best, all_train_times, all_inference_times, total_params
 
 
 @timeit()
@@ -1576,6 +1628,8 @@ if __name__ == '__main__':
                         choices=['union', 'intersection'])
     parser.add_argument('--k_pool_strategy', type=str, default="", required=False, choices=['mean', 'concat', 'sum'])
     parser.add_argument('--init_representation', type=str, choices=['GIC', 'ARGVA', 'GAE', 'VGAE'])
+
+    parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 

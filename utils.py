@@ -446,7 +446,7 @@ def create_rw_cache(sparse_adj, edges, device, rw_m, rw_M):
 def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl',
                                 ratio_per_hop=1.0, max_nodes_per_hop=None,
                                 directed=False, A_csc=None, rw_kwargs=None, sign_kwargs=None, powers_of_A=None,
-                                data=None):
+                                data=None, verbose=True):
     # Extract enclosing subgraphs from A for all links in link_index.
     data_list = []
 
@@ -462,7 +462,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             print("Prepping PoS (plus) data")
             sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
-                                                                       sign_kwargs, rw_kwargs)
+                                                                       sign_kwargs, rw_kwargs, verbose=verbose)
             if sign_k == 1:
                 return sup_data_list
 
@@ -480,13 +480,15 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             return combined_data
         elif powers_of_A and sign_kwargs['optimize_sign']:
             # optimized SoP flow
-            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y)
+            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y,
+                                                                       verbose=verbose)
             return sop_data_list
+
         elif not powers_of_A and sign_kwargs['optimize_sign'] and not sign_kwargs['k_heuristic']:
             # optimized PoS flow
             sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
-                                                                       sign_kwargs, rw_kwargs)
+                                                                       sign_kwargs, rw_kwargs, verbose=verbose)
             return sup_data_list
         elif not powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic']:
             # optimized PoS Plus flow
@@ -499,8 +501,9 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             print_out = True
             for src, dst in tqdm(link_index.t().tolist()):
                 if not powers_of_A:
-                    if print_out:
-                        print("PoS Plus Non-Optimized Flow.")
+                    if print_out and verbose:
+                        print("PoS Non-Optimized Flow.")
+
                     print_out = False
                     # PoS flow
 
@@ -533,6 +536,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
                     sop_data_list = []
                     if print_out:
                         print("SoP Non-Optimized Flow.")
+
                     print_out = False
                     for index, power_of_a in enumerate(powers_of_A, start=1):
                         tmp = k_hop_subgraph(src, dst, num_hops, power_of_a, ratio_per_hop,
@@ -638,10 +642,11 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
     if 'edge' in split_edge['train']:
         pos_edge = split_edge[split]['edge'].t()
 
-        if 'edge_neg' in split_edge['train']:
-            # use pre-sampled  negative training edges for ogbl-vessel
-            neg_edge = split_edge[split]['edge_neg'].t()
-        else:
+        # if 'edge_neg' in split_edge['train']:
+        #     use pre-sampled  negative training edges for ogbl-vessel
+        # neg_edge = split_edge[split]['edge_neg'].t()
+        # else:
+        if True:
             new_edge_index, _ = add_self_loops(edge_index)
             neg_edge = negative_sampling(
                 new_edge_index, num_nodes=num_nodes,
