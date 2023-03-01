@@ -26,7 +26,7 @@ from torch.nn import BCEWithLogitsLoss
 
 from torch_sparse import coalesce, SparseTensor
 
-from torch_geometric.datasets import Planetoid, AttributedGraphDataset, WikipediaNetwork, WebKB
+from torch_geometric.datasets import Planetoid, AttributedGraphDataset, WikipediaNetwork, WebKB, Coauthor
 from torch_geometric.data import Dataset, InMemoryDataset, Data
 from torch_geometric.utils import to_undirected, to_dense_adj
 
@@ -58,7 +58,6 @@ class SEALDataset(InMemoryDataset):
                  use_coalesce=False, node_label='drnl', ratio_per_hop=1.0,
                  max_nodes_per_hop=None, directed=False, rw_kwargs=None, device='cpu', pairwise=False,
                  pos_pairwise=False, neg_ratio=1, use_feature=False, sign_type="", args=None):
-        # TODO: avoid args, use the exact arguments instead
         self.data = data
         self.split_edge = split_edge
         self.num_hops = num_hops
@@ -124,8 +123,7 @@ class SEALDataset(InMemoryDataset):
         # Extract enclosing subgraphs for pos and neg edges
 
         cached_pos_rws = cached_neg_rws = None
-        if self.rw_kwargs.get('m') and self.args.optimize_sign and self.sign_type == "SuP":
-            # currently only cache for flows involving SuP + Optimized using the SIGN + ScaLed flow
+        if self.rw_kwargs.get('m') and self.args.optimize_sign and self.sign_type == "PoS":
             cached_pos_rws = create_rw_cache(self.sparse_adj, pos_edge, self.device, self.rw_kwargs['m'],
                                              self.rw_kwargs['M'])
             cached_neg_rws = create_rw_cache(self.sparse_adj, neg_edge, self.device, self.rw_kwargs['m'],
@@ -162,7 +160,7 @@ class SEALDataset(InMemoryDataset):
             else:
                 rw_kwargs.update({"sign": True})
 
-            if sign_type == 'PoS' or sign_type == "hybrid":
+            if sign_type == 'SoP' or sign_type == "hybrid":
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
@@ -230,7 +228,6 @@ class SEALDynamicDataset(Dataset):
                  use_coalesce=False, node_label='drnl', ratio_per_hop=1.0,
                  max_nodes_per_hop=None, directed=False, rw_kwargs=None, device='cpu', pairwise=False,
                  pos_pairwise=False, neg_ratio=1, use_feature=False, sign_type="", args=None, **kwargs):
-        # TODO: avoid args, use the exact arguments instead
         self.data = data
         self.split_edge = split_edge
         self.num_hops = num_hops
@@ -314,11 +311,13 @@ class SEALDynamicDataset(Dataset):
                     start = torch.tensor(starting_nodes, dtype=torch.long, device=device)
                     rw = self.sparse_adj.random_walk(start.flatten(), self.rw_kwargs.get('m'))
                     self.unique_nodes[tuple(link)] = torch.unique(rw.flatten()).tolist()
+
             print("Finish caching random walk unique nodes")
 
         self.powers_of_A = []
         if self.args.model == 'SIGN':
-            if self.sign_type == 'PoS' or sign_type == "hybrid":
+            if self.sign_type == 'SoP':
+
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
@@ -346,6 +345,7 @@ class SEALDynamicDataset(Dataset):
 
     def len(self):
         return self.__len__()
+
 
     def set_use_cache(self, flag, id):
         self.use_cache = flag
@@ -393,6 +393,7 @@ class SEALDynamicDataset(Dataset):
             powers_of_A=self.powers_of_A, data=self.data, verbose=verbose)[0]
         if self.args.cache_dynamic:
             self.cached_data[idx] = data
+
         return data
 
 
@@ -644,7 +645,7 @@ def _get_test_auc(args, device, emb, model, test_loader):
 
 @torch.no_grad()
 def test_multiple_models(models, val_loader, device, emb, test_loader, evaluator, args):
-    raise NotImplementedError("This is untested for SCALED")
+    raise NotImplementedError("This is untested")
     for m in models:
         m.eval()
 
@@ -858,9 +859,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
             file_name = os.path.join('data', 'link_prediction', args.dataset.lower())
         else:
             # we consume user path
-            file_name = os.path.join(str(Path.home()), 'ExtendoScaLed', 'data', 'link_prediction', args.dataset.lower())
+            file_name = os.path.join(str(Path.home()), 'S3GRL', 'data', 'link_prediction', args.dataset.lower())
             if not os.path.exists(file_name):
-                raise FileNotFoundError("Clone repo in your user path")
+                raise FileNotFoundError("Check your file path is correct")
         node_id_mapping = read_label(file_name)
         edges = read_edges(file_name, node_id_mapping)
 
@@ -902,6 +903,16 @@ def run_sgrl_learning(args, device, hypertuning=False):
     elif args.dataset in ['Cornell', 'Texas', 'Wisconsin']:
         path = osp.join('dataset', args.dataset)
         dataset = WebKB(path, args.dataset, transform=NormalizeFeatures())
+        split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
+                                   test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
+        data = dataset[0]
+        data.edge_index = split_edge['train']['edge'].t()
+        import networkx as nx
+        G = nx.Graph()
+        G.add_edges_from(data.edge_index.T.detach().numpy())
+    elif args.dataset in ['CS', 'Physics']:
+        path = osp.join('dataset', args.dataset)
+        dataset = Coauthor(path, args.dataset, transform=NormalizeFeatures())
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -1022,6 +1033,28 @@ def run_sgrl_learning(args, device, hypertuning=False):
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
+
+
+    if args.dataset.startswith('ogbl-citation'):
+        args.eval_metric = 'mrr'
+        directed = True
+    elif args.dataset.startswith('ogbl-vessel'):
+        args.eval_metric = 'rocauc'
+        directed = False
+    elif args.dataset.startswith('ogbl'):
+        args.eval_metric = 'hits'
+        directed = False
+    else:  # assume other datasets are undirected
+        args.eval_metric = 'auc'
+        directed = False
+
+    if args.use_valedges_as_input:
+        val_edge_index = split_edge['valid']['edge'].t()
+        if not directed:
+            val_edge_index = to_undirected(val_edge_index)
+        data.edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
+        val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
+        data.edge_weight = torch.cat([data.edge_weight, val_edge_weight], 0)
 
     evaluator = None
     if args.dataset.startswith('ogbl'):
@@ -1269,7 +1302,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
                                  num_workers=args.num_workers, follow_batch=follow_batch)
 
     if args.train_node_embedding:
-        # TODO; heads-up: this arg is not supported in SIGN
         emb = torch.nn.Embedding(data.num_nodes, args.hidden_channels).to(device)
     elif args.pretrained_node_embedding:
         weight = torch.load(args.pretrained_node_embedding)
@@ -1488,6 +1520,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             shutil.rmtree(args.res_dir)
 
     print("fin.")
+
     if args.dataset == 'ogbl-collab':
         best = best_test_scores[1]  # hits@50
     elif args.dataset == 'ogbl-ddi':
@@ -1600,7 +1633,7 @@ if __name__ == '__main__':
     parser.add_argument('--train_mf', action='store_true', help="Train MF on the dataset")
 
     parser.add_argument('--sign_k', type=int, default=3)
-    parser.add_argument('--sign_type', type=str, default='', required=False, choices=['SuP', 'PoS', 'hybrid'])
+    parser.add_argument('--sign_type', type=str, default='', required=False, choices=['PoS', 'SoP', 'hybrid'])
     parser.add_argument('--pool_operatorwise', action='store_true', default=False, required=False)
     parser.add_argument('--optimize_sign', action='store_true', default=False, required=False)
     parser.add_argument('--init_features', type=str, default='',
@@ -1632,8 +1665,8 @@ if __name__ == '__main__':
     if args.profile and not torch.cuda.is_available():
         raise Exception("CUDA needs to be enabled to run PyG profiler")
 
-    if (args.sign_type == 'PoS' or args.sign_type == 'hybrid') and not args.pool_operatorwise:
-        raise Exception(f"Cannot run PoS with pool_operatorwise: {args.pool_operatorwise}")
+    if (args.sign_type == 'SoP' or args.sign_type == 'hybrid') and not args.pool_operatorwise:
+        raise Exception(f"Cannot run SoP with pool_operatorwise: {args.pool_operatorwise}")
 
     if args.sign_type == 'hybrid' and not args.optimize_sign:
         raise Exception(f"Cannot run hybrid mode with optimize_size set to {args.optimize_sign}")

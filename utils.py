@@ -84,7 +84,6 @@ def k_hop_subgraph(src, dst, num_hops, A, sample_ratio=1.0,
 
         return nodes, subgraph, dists, node_features, y
     else:
-        # Start of core-logic for ScaLed.
         rw_m = rw_kwargs['rw_m']
         rw_M = rw_kwargs['rw_M']
         sparse_adj = rw_kwargs['sparse_adj']
@@ -167,12 +166,11 @@ def k_hop_subgraph(src, dst, num_hops, A, sample_ratio=1.0,
             z_revised = py_g_drnl_node_labeling(sub_edge_index_revised, src, dst,
                                                 num_nodes=sub_nodes.size(0))
         else:
-            raise NotImplementedError(f"ScaLed does not support {rw_kwargs['node_label']} labeling trick yet.")
+            raise NotImplementedError(f"Does not support {rw_kwargs['node_label']} labeling trick yet.")
 
         data_revised = Data(x=x, z=z_revised,
                             edge_index=sub_edge_index_revised, y=y, node_id=torch.LongTensor(rw_set),
                             num_nodes=len(rw_set), edge_weight=torch.ones(sub_edge_index_revised.shape[-1]))
-        # end of core-logic for ScaLed
         return data_revised
 
 
@@ -320,8 +318,6 @@ def construct_pyg_graph(node_ids, adj, dists, node_features, y, node_label='drnl
 
 def calc_node_edge_ratio(src, dst, num_hops, A, ratio_per_hop,
                          max_nodes_per_hop, x, y, directed, A_csc, node_label, rw_kwargs, verbose=False):
-    # TODO: reuse *.num_nodes and .num_edges
-    # calculate the % of nodes/edges in original k-hop vs rw induced graph
     tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
                          max_nodes_per_hop, node_features=x, y=y,
                          directed=directed, A_csc=A_csc)
@@ -352,8 +348,6 @@ def calc_node_edge_ratio(src, dst, num_hops, A, ratio_per_hop,
 def calc_ratio_helper(link_index_pos, link_index_neg, A, x, y, num_hops, node_label='drnl',
                       ratio_per_hop=1.0, max_nodes_per_hop=None,
                       directed=False, A_csc=None, rw_kwargs=None, split='train', dataset_name='', seed=1):
-    # TODO: this needs to be updated to account for addition of SIGN
-    # calculate sparsity of subgraphs of seal vs ScaLed for the split
     stats_dict = {}
 
     overall_seal_node_storage = []
@@ -461,23 +455,23 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             # Keep in mind that in hybrid, you do not need to set sign_k to 5. Just set it at the individual level.
             # ie; the operators per model you want. If you need 5 in total, use sign_k as 3. This is confusing,
             # but, works.
-            # optimized hybrid (PoS + SuP) flow. We do not support non-optimized hybrid flow.
-            # SuP in hybrid is currently only vanilla SuP and not k-heuristic SuP.
+            # optimized hybrid (SoP + PoS) flow. We do not support non-optimized hybrid flow.
+            # PoS in hybrid is currently only vanilla PoS and not PoS Plus.
             sign_k = sign_kwargs['sign_k']
 
-            print("Prepping SuP data")
-            sup_data_list = OptimizedSignOperations.get_SuP_prepped_ds(link_index, num_hops, A, ratio_per_hop,
+            print("Prepping PoS (plus) data")
+            sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
                                                                        sign_kwargs, rw_kwargs, verbose=verbose)
             if sign_k == 1:
                 return sup_data_list
 
-            print("Prepping PoS data")
-            pos_data_list = OptimizedSignOperations.get_PoS_prepped_ds(powers_of_A, link_index, A, x, y,
-                                                                       verbose=verbose)
+            print("Prepping SoP data")
+            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y)
+
 
             combined_data = []
-            for sup_data, pos_data in zip(sup_data_list, pos_data_list):
+            for sup_data, pos_data in zip(sup_data_list, sop_data_list):
                 data = sup_data
 
                 for k in range(sign_k + 1, sign_k * 2):
@@ -486,31 +480,32 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
                 combined_data.append(data)
             return combined_data
         elif powers_of_A and sign_kwargs['optimize_sign']:
-            # optimized PoS flow
-            pos_data_list = OptimizedSignOperations.get_PoS_prepped_ds(powers_of_A, link_index, A, x, y,
-                                                                       verbose=verbose)
-            return pos_data_list
+            # optimized SoP flow
+            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y)
+            return sop_data_list
+
         elif not powers_of_A and sign_kwargs['optimize_sign'] and not sign_kwargs['k_heuristic']:
-            # optimized SuP flow
-            sup_data_list = OptimizedSignOperations.get_SuP_prepped_ds(link_index, num_hops, A, ratio_per_hop,
+            # optimized PoS flow
+            sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
                                                                        sign_kwargs, rw_kwargs, verbose=verbose)
             return sup_data_list
         elif not powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic']:
-            # optimized k-heuristic SuP flow
-            sup_data_list = OptimizedSignOperations.get_KSuP_prepped_ds(link_index, num_hops, A, ratio_per_hop,
-                                                                        max_nodes_per_hop, directed, A_csc, x, y,
-                                                                        sign_kwargs, rw_kwargs, verbose=verbose)
+            # optimized PoS Plus flow
+            sup_data_list = OptimizedSignOperations.get_PoS_Plus_prepped_ds(link_index, num_hops, A, ratio_per_hop,
+                                                                            max_nodes_per_hop, directed, A_csc, x, y,
+                                                                            sign_kwargs, rw_kwargs)
             return sup_data_list
         elif not sign_kwargs['optimize_sign']:
-            # SIGN + SEAL flow; includes both SuP and PoS flows
+            # SIGN + SEAL flow; includes both PoS and SoP flows
             print_out = True
             for src, dst in tqdm(link_index.t().tolist()):
                 if not powers_of_A:
                     if print_out and verbose:
-                        print("KSuP Non-Optimized Flow.")
+                        print("PoS Non-Optimized Flow.")
+
                     print_out = False
-                    # SuP flow
+                    # PoS flow
 
                     # debug code with graphistry
                     # networkx_G = to_networkx(data)  # the full graph
@@ -532,15 +527,16 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
 
                     data_list.append(data)
                 else:
-                    # PoS flow
+                    # SoP flow
 
                     # debug code with graphistry
                     # networkx_G = to_networkx(data)  # the full graph
                     # graphistry.bind(source='src', destination='dst', node='nodeid').plot(networkx_G)
                     # check against the nodes that is received in tmp before the relabeling occurs
-                    pos_data_list = []
-                    if print_out and verbose:
-                        print("PoS Non-Optimized Flow.")
+                    sop_data_list = []
+                    if print_out:
+                        print("SoP Non-Optimized Flow.")
+                        
                     print_out = False
                     for index, power_of_a in enumerate(powers_of_A, start=1):
                         tmp = k_hop_subgraph(src, dst, num_hops, power_of_a, ratio_per_hop,
@@ -551,10 +547,10 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
                         }
 
                         data = construct_pyg_graph(*tmp, node_label, sign_pyg_kwargs)
-                        pos_data_list.append(data)
+                        sop_data_list.append(data)
 
                     sign_t = TunedSIGN(sign_kwargs['sign_k'])
-                    data = sign_t.PoS_data_creation(pos_data_list)
+                    data = sign_t.SoP_data_creation(sop_data_list)
                     data_list.append(data)
         else:
             # No match found
@@ -570,7 +566,6 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
 
             data = construct_pyg_graph(*tmp, node_label)
         else:
-            # ScaLed flow
             data = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
                                   max_nodes_per_hop, node_features=x, y=y,
                                   directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
@@ -669,7 +664,6 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
         neg_edge = neg_edge[:, perm]
 
     elif 'source_node' in split_edge['train']:
-        # TODO: find out what dataset split prompts this flow
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
         if split == 'train':
