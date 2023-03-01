@@ -300,7 +300,7 @@ class GIN(torch.nn.Module):
 
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
-                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy=""):
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False):
         super().__init__()
 
         self.use_feature = use_feature
@@ -317,7 +317,10 @@ class SIGNNet(torch.nn.Module):
         if self.node_embedding is not None:
             initial_channels += node_embedding.embedding_dim
 
-        mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
+        if not use_mlp:
+            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
+        else:
+            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
         # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
         self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu',
                                  plain_last=False)

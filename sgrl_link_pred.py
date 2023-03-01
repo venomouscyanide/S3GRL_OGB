@@ -297,8 +297,8 @@ class SEALDynamicDataset(Dataset):
             # if in dynamic ScaLed mode, need to cache the unique nodes of random walks before get() due to below error
             # RuntimeError: Cannot re-initialize CUDA in forked subprocess.
             # To use CUDA with multiprocessing, you must use the 'spawn' start method
-            if self.rw_kwargs.get('m') and self.args.optimize_sign and self.sign_type == "SuP":
-                # currently only cache for flows involving SuP + Optimized using the SIGN + ScaLed flow
+            if self.rw_kwargs.get('m') and self.args.optimize_sign and self.sign_type == "PoS":
+                # currently only cache for flows involving PoS + Optimized using the SIGN + ScaLed flow
                 self.cached_pos_rws = create_rw_cache(self.sparse_adj, pos_edge, self.device, self.rw_kwargs['m'],
                                                       self.rw_kwargs['M'])
                 self.cached_neg_rws = create_rw_cache(self.sparse_adj, neg_edge, self.device, self.rw_kwargs['m'],
@@ -1323,7 +1323,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy).to(device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:
@@ -1513,6 +1513,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
         best = best_test_scores[0]  # MRR
     elif args.dataset == 'ogbl-vessel':
         best = best_test_scores[0]  # aucroc
+    elif args.dataset.lower() in ['cora', 'citeseer', 'pubmed']:
+        best = best_test_scores[2]  # hits@100
     else:
         best = best_test_scores[0]  # auc
     return total_prep_time, best, all_train_times, all_inference_times, total_params
@@ -1630,6 +1632,7 @@ if __name__ == '__main__':
     parser.add_argument('--init_representation', type=str, choices=['GIC', 'ARGVA', 'GAE', 'VGAE'])
 
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
+    parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
