@@ -469,7 +469,6 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             print("Prepping SoP data")
             sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y)
 
-
             combined_data = []
             for sup_data, pos_data in zip(sup_data_list, sop_data_list):
                 data = sup_data
@@ -481,7 +480,8 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             return combined_data
         elif powers_of_A and sign_kwargs['optimize_sign']:
             # optimized SoP flow
-            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y)
+            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y,
+                                                                       verbose=verbose)
             return sop_data_list
 
         elif not powers_of_A and sign_kwargs['optimize_sign'] and not sign_kwargs['k_heuristic']:
@@ -536,7 +536,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
                     sop_data_list = []
                     if print_out:
                         print("SoP Non-Optimized Flow.")
-                        
+
                     print_out = False
                     for index, power_of_a in enumerate(powers_of_A, start=1):
                         tmp = k_hop_subgraph(src, dst, num_hops, power_of_a, ratio_per_hop,

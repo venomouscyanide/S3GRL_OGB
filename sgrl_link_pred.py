@@ -346,7 +346,6 @@ class SEALDynamicDataset(Dataset):
     def len(self):
         return self.__len__()
 
-
     def set_use_cache(self, flag, id):
         self.use_cache = flag
         print(f"Updated {id} loader use_cache to {flag}")
@@ -1034,31 +1033,14 @@ def run_sgrl_learning(args, device, hypertuning=False):
         transformed_data = norm(data)
         data.x = transformed_data.x
 
-
-    if args.dataset.startswith('ogbl-citation'):
-        args.eval_metric = 'mrr'
-        directed = True
-    elif args.dataset.startswith('ogbl-vessel'):
-        args.eval_metric = 'rocauc'
-        directed = False
-    elif args.dataset.startswith('ogbl'):
-        args.eval_metric = 'hits'
-        directed = False
-    else:  # assume other datasets are undirected
-        args.eval_metric = 'auc'
-        directed = False
-
-    if args.use_valedges_as_input:
-        val_edge_index = split_edge['valid']['edge'].t()
-        if not directed:
-            val_edge_index = to_undirected(val_edge_index)
-        data.edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
-        val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
-        data.edge_weight = torch.cat([data.edge_weight, val_edge_weight], 0)
-
     evaluator = None
     if args.dataset.startswith('ogbl'):
         evaluator = Evaluator(name=args.dataset)
+    elif args.dataset.lower() in ['cora', 'pubmed', 'citeseer']:
+        evaluator = Evaluator('ogbl-collab')
+        evaluator.K = 100
+        args.eval_metric = 'hits'
+
     if args.eval_metric == 'hits':
         loggers = {
             'Hits@20': Logger(args.runs, args),

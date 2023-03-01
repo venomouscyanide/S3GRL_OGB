@@ -46,8 +46,8 @@ class TunedSIGN(SIGN):
 
 class OptimizedSignOperations:
     @staticmethod
-    def get_SoP_prepped_ds(powers_of_A, link_index, A, x, y):
-        print("SoP Optimized Flow.")
+    def get_SoP_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False):
+        # print("SoP Optimized Flow.")
         # optimized SoP flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
 
         sop_data_list = []
@@ -139,14 +139,14 @@ class OptimizedSignOperations:
         return sop_data_list
 
     @staticmethod
-
     def get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop, max_nodes_per_hop, directed, A_csc, x, y,
-                           sign_kwargs, rw_kwargs):
+                           sign_kwargs, rw_kwargs, verbose=False):
         # optimized PoS flow
-        print("PoS Optimized Flow.")
+        if verbose:
+            print("PoS Optimized Flow.")
         from utils import k_hop_subgraph
         pos_data_list = []
-        print("Start with PoS data prep")
+        # print("Start with PoS data prep")
 
         K = sign_kwargs['sign_k']
 
@@ -196,13 +196,14 @@ class OptimizedSignOperations:
 
     @staticmethod
     def get_PoS_Plus_prepped_ds(link_index, num_hops, A, ratio_per_hop, max_nodes_per_hop, directed, A_csc, x, y,
-                                sign_kwargs, rw_kwargs):
+                                sign_kwargs, rw_kwargs, verbose=False):
         # optimized PoS Plus flow
-        print("PoS Plus Optimized Flow.")
+        if verbose:
+            print("PoS Plus Optimized Flow.")
         from utils import k_hop_subgraph, neighbors
         pos_data_list = []
-        print("Start with PoS Plus data prep")
-
+        if verbose:
+            print("Start with PoS Plus data prep")
 
         K = sign_kwargs['sign_k']
 
