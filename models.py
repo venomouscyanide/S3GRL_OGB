@@ -319,10 +319,13 @@ class SIGNNet(torch.nn.Module):
 
         if not use_mlp:
             # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
-            self.operator_diff = Linear(in_features=initial_channels * (num_layers + 1), out_features=hidden_channels)
+            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
+            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu',
+                                     plain_last=False)
         else:
-            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels * 2, hidden_channels]
-            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu')
+            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
+            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu',
+                                     plain_last=True)
         if not self.k_heuristic:
             self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout,
                                      batch_norm=True, act_first=True, act='relu')
