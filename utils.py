@@ -763,14 +763,27 @@ class Logger(object):
         self.epochs = epochs
         self.runs = runs
 
+    def print_best_picked(self, run, f=sys.stdout):
+        result = 100 * torch.tensor(self.results[run])
+        result = np.round(result.numpy(), 2)
+        highest_val = result[:, 0].max()
+        highest_val_index = np.where(result[:, 0] == highest_val)
+        highest_test = result[highest_val_index, 1].max()
+        print(f'Picked Valid: {highest_val :.2f}', file=f)
+        print(f'Picked Test: {highest_test:.2f}', file=f)
+        return highest_val, highest_test
+
     def print_statistics(self, run=None, f=sys.stdout):
         if run is not None:
             result = 100 * torch.tensor(self.results[run])
+            result = np.round(result.numpy(), 2)
+            highest_val_index = np.where(result[:, 0] == result[:, 0].max())
             argmax = result[:, 0].argmax().item()
+            highest_test = result[highest_val_index, 1].max()
             print(f'Run {run + 1:02d}:', file=f)
             print(f'Highest Valid: {result[:, 0].max():.2f}', file=f)
             print(f'Highest Eval Point: {argmax + 1}', file=f)
-            print(f'Highest Test: {result[argmax, 1]:.2f}', file=f)
+            print(f'Highest Test: {highest_test:.2f}', file=f)
             print(f'Average Test: {result.T[1].mean():.2f} ± {result.T[1].std():.2f}', file=f)
         else:
             result = 100 * torch.tensor(self.results)

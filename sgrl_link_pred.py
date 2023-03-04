@@ -1463,6 +1463,11 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         with open(log_file, 'a') as f:
                             print(key, file=f)
                             print(to_print, file=f)
+                with open(log_file, 'a') as f:
+                    for key, result in results.items():
+                        print(key)
+                        picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
+                        print(f'Picked Valid:{picked_val:.2f}, Picked Test: {picked_test:.2f}')
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers
