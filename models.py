@@ -320,19 +320,21 @@ class SIGNNet(torch.nn.Module):
         if not use_mlp:
             # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
             mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
-            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu',
+            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=False)
         else:
             mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu',
                                      plain_last=True)
         if not self.k_heuristic:
-            self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout,
-                                     batch_norm=True, act_first=True, act='relu')
+            self.link_pred_mlp = MLP([hidden_channels, hidden_channels * 2, 1], dropout=dropout, batch_norm=True,
+                                     act_first=True, act='relu')
         else:
             if self.k_pool_strategy == "mean":
                 channels = 2
             elif self.k_pool_strategy == "sum":
+                channels = 2
+            elif self.k_pool_strategy == "max":
                 channels = 2
             elif self.k_pool_strategy == "concat":
                 channels = 1 + self.k_heuristic
@@ -359,7 +361,10 @@ class SIGNNet(torch.nn.Module):
             mask[center_indices + 1] = False
             trimmed_batch = batch[op_index][mask]
 
-            if self.k_pool_strategy == 'mean':
+            if self.k_pool_strategy == 'max':
+                h_k_max = global_max_pool(h[mask], trimmed_batch, size=uq.shape[0])
+                h = torch.concat([h_a, h_k_max], dim=-1)
+            elif self.k_pool_strategy == 'mean':
                 h_k_mean = global_mean_pool(h[mask], trimmed_batch, size=uq.shape[0])
                 h = torch.concat([h_a, h_k_mean], dim=-1)
             elif self.k_pool_strategy == 'sum':

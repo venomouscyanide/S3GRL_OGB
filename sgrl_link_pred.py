@@ -44,7 +44,7 @@ from profiler_utils import profile_helper
 from tuned_SIGN import TunedSIGN
 # DO NOT REMOVE AA CN PPR IMPORTS
 from utils import get_pos_neg_edges, extract_enclosing_subgraphs, construct_pyg_graph, k_hop_subgraph, do_edge_split, \
-    Logger, AA, CN, PPR, calc_ratio_helper, create_rw_cache
+    Logger, AA, CN, PPR, calc_ratio_helper, create_rw_cache, adjust_lr
 
 import numpy as np
 
@@ -431,7 +431,7 @@ def profile_train(model, train_loader, optimizer, device, emb, train_dataset, ar
     return total_loss / len(train_dataset)
 
 
-def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args):
+def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch):
     # normal training with BCE logit loss
     model.train()
 
@@ -466,7 +466,8 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args):
     return total_loss / len(train_dataset)
 
 
-def train_pairwise(model, train_positive_loader, train_negative_loader, optimizer, device, emb, train_dataset, args):
+def train_pairwise(model, train_positive_loader, train_negative_loader, optimizer, device, emb, train_dataset, args,
+                   epoch):
     # pairwise training with AUC loss + many others from PLNLP paper
     model.train()
 
@@ -510,8 +511,12 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
         else:
             neg_logits = model(neg_num_nodes, neg_data.z, neg_data.edge_index, neg_data.batch, neg_x, neg_edge_weight,
                                neg_node_id)
+
         loss_fn = get_loss(args.loss_fn)
         loss = loss_fn(pos_logits, neg_logits, args.neg_ratio)
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        adjust_lr(optimizer, epoch / args.epochs, args.lr)
 
         loss.backward()
         optimizer.step()
@@ -1272,9 +1277,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         if args.pairwise:
             train_pos_loader = DataLoader(train_positive_dataset, batch_size=args.batch_size,
-                                          shuffle=True, num_workers=args.num_workers)
+                                          shuffle=True, num_workers=args.num_workers, follow_batch=follow_batch)
             train_neg_loader = DataLoader(train_negative_dataset, batch_size=args.batch_size * args.neg_ratio,
-                                          shuffle=True, num_workers=args.num_workers)
+                                          shuffle=True, num_workers=args.num_workers, follow_batch=follow_batch)
         else:
             train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
                                       shuffle=True, num_workers=args.num_workers, follow_batch=follow_batch)
@@ -1419,13 +1424,13 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
                 if not args.pairwise:
                     time_start_for_train_epoch = default_timer()
-                    loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args)
+                    loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch)
                     time_end_for_train_epoch = default_timer()
                     all_train_times.append(time_end_for_train_epoch - time_start_for_train_epoch)
                 else:
                     loss = train_pairwise(model, train_pos_loader, train_neg_loader, optimizer, device, emb,
                                           train_dataset,
-                                          args)
+                                          args, epoch)
 
             if epoch % args.eval_steps == 0:
                 results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args)

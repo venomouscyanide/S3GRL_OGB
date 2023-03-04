@@ -815,3 +815,13 @@ def human_format(num):
         magnitude += 1
         num /= 1000.0
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
+
+def adjust_lr(optimizer, decay_ratio, lr):
+    lr_ = lr * (1 - decay_ratio)
+    lr_min = lr * 0.0001
+    if lr_ < lr_min:
+        lr_ = lr_min
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr_
+    return lr_
