@@ -13,6 +13,7 @@ from shutil import copy
 import copy as cp
 
 from ray import tune
+from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
 from torch_geometric.loader import DataLoader
 from torch_geometric.profile import profileit, timeit
@@ -1335,6 +1336,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             torch.nn.init.xavier_uniform_(emb.weight)
             parameters += list(emb.parameters())
         optimizer = torch.optim.Adam(params=parameters, lr=args.lr, weight_decay=1e-4)
+        scd = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10,
+                                             min_lr=5e-5)
         total_params = sum(p.numel() for param in parameters for p in param)
         print(f'Total number of parameters is {total_params}')
         if args.model == 'DGCNN':
@@ -1426,6 +1429,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                     time_start_for_train_epoch = default_timer()
                     loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch)
                     time_end_for_train_epoch = default_timer()
+                    scd.step(loss)
                     all_train_times.append(time_end_for_train_epoch - time_start_for_train_epoch)
                 else:
                     loss = train_pairwise(model, train_pos_loader, train_neg_loader, optimizer, device, emb,
@@ -1459,6 +1463,11 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         with open(log_file, 'a') as f:
                             print(key, file=f)
                             print(to_print, file=f)
+                with open(log_file, 'a') as f:
+                    for key, result in results.items():
+                        print(key)
+                        picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
+                        print(f'Picked Valid:{picked_val:.2f}, Picked Test: {picked_test:.2f}')
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers
