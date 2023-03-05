@@ -769,8 +769,8 @@ class Logger(object):
         highest_val = result[:, 0].max()
         highest_val_index = np.where(result[:, 0] == highest_val)
         highest_test = result[highest_val_index, 1].max()
-        print(f'Picked Valid: {highest_val :.2f}', file=f)
-        print(f'Picked Test: {highest_test:.2f}', file=f)
+        print(f'Picked Valid : {highest_val :.2f}', file=f)
+        print(f'Picked Test : {highest_test:.2f}', file=f)
         return highest_val, highest_test
 
     def print_statistics(self, run=None, f=sys.stdout):
