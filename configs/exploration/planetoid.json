@@ -43,7 +43,7 @@
         "num_workers": 70,
         "train_node_embedding": false,
         "pretrained_node_embedding": null,
-        "use_valedges_as_input": false,
+        "use_valedges_as_input": true,
         "eval_steps": 1,
         "log_steps": 1,
         "checkpoint_training": false,
