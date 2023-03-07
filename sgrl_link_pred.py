@@ -971,6 +971,24 @@ def run_sgrl_learning(args, device, hypertuning=False):
         args.eval_metric = 'auc'
         directed = False
 
+    if args.dataset == 'ogbl-collab':
+        # Taken from https://github.com/yao8839836/ogb_report/blob/main/plnlp_sign.py
+        # filters training edges to edge_year >= 2010. Does this by default
+        if hasattr(data, 'edge_year'):
+            selected_year_index = torch.reshape(
+                (split_edge['train']['year'] >= 2010).nonzero(as_tuple=False), (-1,))
+            split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
+            split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
+            split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
+            train_edge_index = split_edge['train']['edge'].t()
+            # create adjacency matrix
+            new_edges = to_undirected(train_edge_index, split_edge['train']['weight'])  # , reduce='add'
+            new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
+            data.adj_t = SparseTensor(row=new_edge_index[0],
+                                      col=new_edge_index[1],
+                                      value=new_edge_weight.to(torch.float32))
+            data.edge_index = new_edge_index
+
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
         if not directed:
