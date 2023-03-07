@@ -324,10 +324,10 @@ class SIGNNet(torch.nn.Module):
                                      plain_last=False)
         else:
             mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
-            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='elu',
+            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=True)
         if not self.k_heuristic:
-            self.link_pred_mlp = MLP([hidden_channels, hidden_channels * 2, 1], dropout=dropout, batch_norm=True,
+            self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout, batch_norm=True,
                                      act_first=True, act='relu')
         else:
             if self.k_pool_strategy == "mean":
