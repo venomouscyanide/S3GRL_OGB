@@ -374,7 +374,7 @@ def calc_ratio_helper(link_index_pos, link_index_neg, A, x, y, num_hops, node_la
 
     link_index = torch.cat((link_index_pos, link_index_neg), dim=-1)
 
-    for src, dst in tqdm(link_index.t().tolist()):
+    for src, dst in tqdm(link_index.t().tolist(), ncols=70):
         node_ratio, edge_ratio, num_nodes_seal, num_nodes_sweal, num_edges_seal, num_edges_sweal = calc_node_edge_ratio(
             src, dst, num_hops, A, ratio_per_hop, max_nodes_per_hop, x, y, directed, A_csc, node_label, rw_kwargs)
 
@@ -500,7 +500,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
         elif not sign_kwargs['optimize_sign']:
             # SIGN + SEAL flow; includes both PoS and SoP flows
             print_out = True
-            for src, dst in tqdm(link_index.t().tolist()):
+            for src, dst in tqdm(link_index.t().tolist(), ncols=70):
                 if not powers_of_A:
                     if print_out and verbose:
                         print("PoS Non-Optimized Flow.")
@@ -558,7 +558,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             raise NotImplementedError("No matching configuration for model data prep found. Please check code.")
         return data_list
 
-    for src, dst in tqdm(link_index.t().tolist()):
+    for src, dst in tqdm(link_index.t().tolist(), ncols=70):
         if not rw_kwargs['rw_m']:
             # SEAL flow
             tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
@@ -690,7 +690,7 @@ def CN(A, edge_index, batch_size=100000):
     print("Using the CN heuristic score")
     link_loader = DataLoader(range(edge_index.size(1)), batch_size)
     scores = []
-    for ind in tqdm(link_loader):
+    for ind in tqdm(link_loader, ncols=70):
         src, dst = edge_index[0, ind], edge_index[1, ind]
         cur_scores = np.array(np.sum(A[src].multiply(A[dst]), 1)).flatten()
         scores.append(cur_scores)
@@ -705,7 +705,7 @@ def AA(A, edge_index, batch_size=100000):
     A_ = A.multiply(multiplier).tocsr()
     link_loader = DataLoader(range(edge_index.size(1)), batch_size)
     scores = []
-    for ind in tqdm(link_loader):
+    for ind in tqdm(link_loader, ncols=70):
         src, dst = edge_index[0, ind], edge_index[1, ind]
         cur_scores = np.array(np.sum(A[src].multiply(A_[dst]), 1)).flatten()
         scores.append(cur_scores)
@@ -727,7 +727,7 @@ def PPR(A, edge_index):
     scores = []
     visited = set([])
     j = 0
-    for i in tqdm(range(edge_index.shape[1])):
+    for i in tqdm(range(edge_index.shape[1]), ncols=70):
         if i < j:
             continue
         src = edge_index[0, i]
@@ -769,8 +769,8 @@ class Logger(object):
         highest_val = result[:, 0].max()
         highest_val_index = np.where(result[:, 0] == highest_val)
         highest_test = result[highest_val_index, 1].max()
-        print(f'Picked Valid : {highest_val :.2f}', file=f)
-        print(f'Picked Test : {highest_test:.2f}', file=f)
+        print(f'Picked Valid: {highest_val :.2f}', file=f)
+        print(f'Picked Test: {highest_test:.2f}', file=f)
         return highest_val, highest_test
 
     def print_statistics(self, run=None, f=sys.stdout):

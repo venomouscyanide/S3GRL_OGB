@@ -789,6 +789,7 @@ def run_sgrl_learning_with_ray(config, hyper_param_class, device):
 
 
 def run_sgrl_learning(args, device, hypertuning=False):
+    print(f"Current arguments accepted are: {args}")
     if args.save_appendix == '':
         args.save_appendix = '_' + time.strftime("%Y%m%d%H%M%S") + f'_seed{args.seed}'
         if args.m and args.M:
@@ -1484,7 +1485,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                     for key, result in results.items():
                         print(key)
                         picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
-                        print(f'Picked Valid :{picked_val:.2f}, Picked Test: {picked_test:.2f}')
+                        print(f'Picked Valid: {picked_val:.2f}, Picked Test: {picked_test:.2f}')
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers

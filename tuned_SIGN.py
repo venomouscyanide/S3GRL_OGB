@@ -150,7 +150,7 @@ class OptimizedSignOperations:
 
         K = sign_kwargs['sign_k']
 
-        for src, dst in tqdm(link_index.t().tolist(), disable=not verbose):
+        for src, dst in tqdm(link_index.t().tolist(), disable=not verbose, ncols=70):
             tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
                                  max_nodes_per_hop, node_features=x, y=y,
                                  directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
@@ -207,7 +207,7 @@ class OptimizedSignOperations:
 
         K = sign_kwargs['sign_k']
 
-        for src, dst in tqdm(link_index.t().tolist(), disable=not verbose):
+        for src, dst in tqdm(link_index.t().tolist(), disable=not verbose, ncols=70):
             tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
                                  max_nodes_per_hop, node_features=x, y=y,
                                  directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)

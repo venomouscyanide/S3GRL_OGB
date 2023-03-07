@@ -1,5 +1,6 @@
 import argparse
 import json
+import pprint
 from timeit import default_timer
 
 import torch
@@ -102,6 +103,9 @@ class SGRLArgumentParser:
         self.init_representation = init_representation
         self.cache_dynamic = cache_dynamic
         self.use_mlp = use_mlp
+
+    def __str__(self):
+        return pprint.pformat(self.__dict__)
 
 
 def sgrl_master_controller(config, results_json):
