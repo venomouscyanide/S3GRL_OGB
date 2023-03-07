@@ -371,6 +371,7 @@ class SIGNNet(torch.nn.Module):
                 h_k_sum = global_add_pool(h[mask], trimmed_batch, size=uq.shape[0])
                 h = torch.concat([h_a, h_k_sum], dim=-1)
             elif self.k_pool_strategy == 'concat':
+                raise NotImplementedError("Concat pool strat is not supported.")
                 h_k = h[mask].reshape(shape=(
                     center_indices.shape[0], self.hidden_channels * self.k_heuristic)
                 )

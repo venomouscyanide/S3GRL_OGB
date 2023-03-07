@@ -17,7 +17,7 @@ from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
 from torch_geometric.loader import DataLoader
 from torch_geometric.profile import profileit, timeit
-from torch_geometric.transforms import OneHotDegree, NormalizeFeatures
+from torch_geometric.transforms import NormalizeFeatures
 from tqdm import tqdm
 import pdb
 
@@ -29,7 +29,7 @@ from torch_sparse import coalesce, SparseTensor
 
 from torch_geometric.datasets import Planetoid, AttributedGraphDataset, WikipediaNetwork, WebKB, Coauthor
 from torch_geometric.data import Dataset, InMemoryDataset, Data
-from torch_geometric.utils import to_undirected, to_dense_adj
+from torch_geometric.utils import to_undirected
 
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 
@@ -42,12 +42,9 @@ from models import SAGE, DGCNN, GCN, GIN, SIGNNet
 from n2v_prep import node_2_vec_pretrain
 
 from profiler_utils import profile_helper
-from tuned_SIGN import TunedSIGN
 # DO NOT REMOVE AA CN PPR IMPORTS
-from utils import get_pos_neg_edges, extract_enclosing_subgraphs, construct_pyg_graph, k_hop_subgraph, do_edge_split, \
-    Logger, AA, CN, PPR, calc_ratio_helper, create_rw_cache, adjust_lr
-
-import numpy as np
+from utils import get_pos_neg_edges, extract_enclosing_subgraphs, do_edge_split, Logger, AA, CN, PPR, calc_ratio_helper, \
+    create_rw_cache, adjust_lr
 
 warnings.simplefilter('ignore', SparseEfficiencyWarning)
 warnings.simplefilter('ignore', FutureWarning)
