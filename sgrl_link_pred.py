@@ -972,10 +972,11 @@ def run_sgrl_learning(args, device, hypertuning=False):
         args.eval_metric = 'auc'
         directed = False
 
-    if args.dataset == 'ogbl-collab':
+    if args.dataset == 'ogbl-collab' and args.split_by_year:
         # Taken from https://github.com/yao8839836/ogb_report/blob/main/plnlp_sign.py
-        # filters training edges to edge_year >= 2010. Does this by default
+        # filters training edges to edge_year >= 2010
         if hasattr(data, 'edge_year'):
+            print("Filtering ogbl-collab training set to >= 2010 year")
             selected_year_index = torch.reshape(
                 (split_edge['train']['year'] >= 2010).nonzero(as_tuple=False), (-1,))
             split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
@@ -1664,6 +1665,7 @@ if __name__ == '__main__':
     parser.add_argument('--init_representation', type=str, choices=['GIC', 'ARGVA', 'GAE', 'VGAE'])
 
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
+    parser.add_argument('--split_by_year', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
