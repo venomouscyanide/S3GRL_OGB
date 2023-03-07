@@ -83,7 +83,9 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15,
+        "warm_up": 15
       }
     },
     "Cora_PoS_Plus_33_uvai": {
@@ -169,7 +171,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_PoS_11_uvai": {
@@ -255,7 +258,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_PoS_33_uvai": {
@@ -341,7 +345,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_SoP_uvai": {
@@ -427,10 +432,10 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
-
     "Cora_PoS_Plus_11": {
       "ds_params": {
         "runs": 10,
@@ -514,7 +519,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_PoS_Plus_33": {
@@ -600,7 +606,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_PoS_11": {
@@ -686,7 +693,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_PoS_33": {
@@ -772,7 +780,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     },
     "Cora_SoP": {
@@ -858,7 +867,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "use_mlp": false
+        "use_mlp": false,
+        "warm_up": 15
       }
     }
   }

@@ -20,7 +20,7 @@ class SGRLArgumentParser:
                  profile, split_val_ratio, split_test_ratio, train_mlp, dropout, train_gae, base_gae, dataset_stats,
                  seed, dataset_split_num, train_n2v, train_mf, sign_k, sign_type, pool_operatorwise, optimize_sign,
                  init_features, n2v_dim=256, k_heuristic=0, k_node_set_strategy="", k_pool_strategy="",
-                 init_representation="", cache_dynamic=False, use_mlp=False):
+                 init_representation="", cache_dynamic=False, use_mlp=False, warm_up=0):
         # Data Settings
         self.dataset = dataset
         self.fast_split = fast_split
@@ -88,6 +88,7 @@ class SGRLArgumentParser:
         self.dataset_split_num = dataset_split_num
         self.train_n2v = train_n2v
         self.train_mf = train_mf
+        self.warm_up = warm_up
 
         # SIGN related
         self.sign_k = sign_k

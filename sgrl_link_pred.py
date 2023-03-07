@@ -976,7 +976,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
         if not directed:
             val_edge_index = to_undirected(val_edge_index)
         data.edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
-        split_edge['train']['edge'] = data.edge_index.t()
         try:
             if torch.any(data.edge_weight):
                 val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
@@ -1436,7 +1435,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
                                           train_dataset,
                                           args, epoch)
 
-            if epoch % args.eval_steps == 0:
+            if epoch <= args.warm_up:
+                print(f"Warm up in progress. At step {epoch}/{args.warm_up}")
+            if epoch % args.eval_steps == 0 and epoch > args.warm_up:
                 results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args)
                 all_inference_times.append(time_for_inference)
                 if hypertuning:
@@ -1467,7 +1468,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                     for key, result in results.items():
                         print(key)
                         picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
-                        print(f'Picked Valid :{picked_val:.2f}, Picked Test: {picked_test:.2f}')
+                        print(f'Picked Valid: {picked_val:.2f}, Picked Test: {picked_test:.2f}')
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers
@@ -1647,6 +1648,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
+    parser.add_argument('--warm_up', type=int, default=0)
 
     args = parser.parse_args()
 
