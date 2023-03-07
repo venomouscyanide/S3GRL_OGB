@@ -25,7 +25,7 @@
         "num_layers": -1,
         "hidden_channels": 256,
         "batch_size": 32,
-        "num_hops": 2,
+        "num_hops": 3,
         "ratio_per_hop": 1.0,
         "max_nodes_per_hop": null,
         "node_label": "zo",

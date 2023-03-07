@@ -374,7 +374,7 @@ def calc_ratio_helper(link_index_pos, link_index_neg, A, x, y, num_hops, node_la
 
     link_index = torch.cat((link_index_pos, link_index_neg), dim=-1)
 
-    for src, dst in tqdm(link_index.t().tolist()):
+    for src, dst in tqdm(link_index.t().tolist(), ncols=70):
         node_ratio, edge_ratio, num_nodes_seal, num_nodes_sweal, num_edges_seal, num_edges_sweal = calc_node_edge_ratio(
             src, dst, num_hops, A, ratio_per_hop, max_nodes_per_hop, x, y, directed, A_csc, node_label, rw_kwargs)
 
@@ -467,7 +467,8 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
                 return sup_data_list
 
             print("Prepping SoP data")
-            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y)
+            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y,
+                                                                       verbose=verbose)
 
             combined_data = []
             for sup_data, pos_data in zip(sup_data_list, sop_data_list):
@@ -494,12 +495,12 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             # optimized PoS Plus flow
             sup_data_list = OptimizedSignOperations.get_PoS_Plus_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                             max_nodes_per_hop, directed, A_csc, x, y,
-                                                                            sign_kwargs, rw_kwargs)
+                                                                            sign_kwargs, rw_kwargs, verbose=verbose)
             return sup_data_list
         elif not sign_kwargs['optimize_sign']:
             # SIGN + SEAL flow; includes both PoS and SoP flows
             print_out = True
-            for src, dst in tqdm(link_index.t().tolist()):
+            for src, dst in tqdm(link_index.t().tolist(), ncols=70):
                 if not powers_of_A:
                     if print_out and verbose:
                         print("PoS Non-Optimized Flow.")
@@ -557,7 +558,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             raise NotImplementedError("No matching configuration for model data prep found. Please check code.")
         return data_list
 
-    for src, dst in tqdm(link_index.t().tolist()):
+    for src, dst in tqdm(link_index.t().tolist(), ncols=70):
         if not rw_kwargs['rw_m']:
             # SEAL flow
             tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
@@ -642,15 +643,16 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
     if 'edge' in split_edge['train']:
         pos_edge = split_edge[split]['edge'].t()
 
-        # if 'edge_neg' in split_edge['train']:
-        #     use pre-sampled  negative training edges for ogbl-vessel
-        # neg_edge = split_edge[split]['edge_neg'].t()
-        # else:
-        if True:
-            new_edge_index, _ = add_self_loops(edge_index)
-            neg_edge = negative_sampling(
-                new_edge_index, num_nodes=num_nodes,
-                num_neg_samples=pos_edge.size(1) * neg_ratio)
+        if split == 'train':
+            if 'edge_neg' in split_edge['train']:
+                neg_edge = split_edge[split]['edge_neg'].t()
+            else:
+                new_edge_index, _ = add_self_loops(edge_index)
+                neg_edge = negative_sampling(
+                    new_edge_index, num_nodes=num_nodes,
+                    num_neg_samples=pos_edge.size(1) * neg_ratio)
+        else:
+            neg_edge = split_edge[split]['edge_neg'].t()
 
         # subsample for pos_edge
         num_pos = pos_edge.size(1)
@@ -688,7 +690,7 @@ def CN(A, edge_index, batch_size=100000):
     print("Using the CN heuristic score")
     link_loader = DataLoader(range(edge_index.size(1)), batch_size)
     scores = []
-    for ind in tqdm(link_loader):
+    for ind in tqdm(link_loader, ncols=70):
         src, dst = edge_index[0, ind], edge_index[1, ind]
         cur_scores = np.array(np.sum(A[src].multiply(A[dst]), 1)).flatten()
         scores.append(cur_scores)
@@ -703,7 +705,7 @@ def AA(A, edge_index, batch_size=100000):
     A_ = A.multiply(multiplier).tocsr()
     link_loader = DataLoader(range(edge_index.size(1)), batch_size)
     scores = []
-    for ind in tqdm(link_loader):
+    for ind in tqdm(link_loader, ncols=70):
         src, dst = edge_index[0, ind], edge_index[1, ind]
         cur_scores = np.array(np.sum(A[src].multiply(A_[dst]), 1)).flatten()
         scores.append(cur_scores)
@@ -725,7 +727,7 @@ def PPR(A, edge_index):
     scores = []
     visited = set([])
     j = 0
-    for i in tqdm(range(edge_index.shape[1])):
+    for i in tqdm(range(edge_index.shape[1]), ncols=70):
         if i < j:
             continue
         src = edge_index[0, i]
@@ -761,23 +763,39 @@ class Logger(object):
         self.epochs = epochs
         self.runs = runs
 
+    def print_best_picked(self, run, f=sys.stdout):
+        result = 100 * torch.tensor(self.results[run])
+        result = np.round(result.numpy(), 2)
+        highest_val = result[:, 0].max()
+        highest_val_index = np.where(result[:, 0] == highest_val)
+        highest_test = result[highest_val_index, 1].max()
+        print(f'Picked Valid: {highest_val :.2f}', file=f)
+        print(f'Picked Test: {highest_test:.2f}', file=f)
+        return highest_val, highest_test
+
     def print_statistics(self, run=None, f=sys.stdout):
         if run is not None:
             result = 100 * torch.tensor(self.results[run])
+            result = np.round(result.numpy(), 2)
+            highest_val = result[:, 0].max()
+            highest_val_index = np.where(result[:, 0] == highest_val)
             argmax = result[:, 0].argmax().item()
+            highest_test = result[highest_val_index, 1].max()
             print(f'Run {run + 1:02d}:', file=f)
-            print(f'Highest Valid: {result[:, 0].max():.2f}', file=f)
+            print(f'Highest Valid: {highest_val :.2f}', file=f)
             print(f'Highest Eval Point: {argmax + 1}', file=f)
-            print(f'Highest Test: {result[argmax, 1]:.2f}', file=f)
+            print(f'Highest Test: {highest_test:.2f}', file=f)
             print(f'Average Test: {result.T[1].mean():.2f} ± {result.T[1].std():.2f}', file=f)
         else:
             result = 100 * torch.tensor(self.results)
 
             best_results = []
             for r in result:
-                valid = r[:, 0].max().item()
-                test = r[r[:, 0].argmax(), 1].item()
-                best_results.append((valid, test))
+                r = np.round(r.numpy(), 2)
+                highest_val = r[:, 0].max()
+                highest_val_index = np.where(r[:, 0] == highest_val)
+                highest_test = r[highest_val_index, 1].max()
+                best_results.append((highest_val, highest_test))
 
             best_result = torch.tensor(best_results)
 
@@ -813,3 +831,15 @@ def human_format(num):
         magnitude += 1
         num /= 1000.0
     return '{}{}'.format('{:f}'.format(num).rstrip('0').rstrip('.'), ['', 'K', 'M', 'B', 'T'][magnitude])
+
+
+def adjust_lr(optimizer, decay_ratio, lr):
+    # Taken from https://github.com/zhitao-wang/PLNLP/blob/master/plnlp/model.py
+    lr_ = lr * (1 - decay_ratio)
+    lr_min = lr * 0.0001
+
+    if lr_ < lr_min:
+        lr_ = lr_min
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr_
+    return lr_

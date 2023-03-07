@@ -1,5 +1,6 @@
 import argparse
 import json
+import pprint
 from timeit import default_timer
 
 import torch
@@ -20,7 +21,7 @@ class SGRLArgumentParser:
                  profile, split_val_ratio, split_test_ratio, train_mlp, dropout, train_gae, base_gae, dataset_stats,
                  seed, dataset_split_num, train_n2v, train_mf, sign_k, sign_type, pool_operatorwise, optimize_sign,
                  init_features, n2v_dim=256, k_heuristic=0, k_node_set_strategy="", k_pool_strategy="",
-                 init_representation="", cache_dynamic=False, use_mlp=False):
+                 init_representation="", cache_dynamic=False, use_mlp=False, split_by_year=False):
         # Data Settings
         self.dataset = dataset
         self.fast_split = fast_split
@@ -102,6 +103,10 @@ class SGRLArgumentParser:
         self.init_representation = init_representation
         self.cache_dynamic = cache_dynamic
         self.use_mlp = use_mlp
+        self.split_by_year = split_by_year
+
+    def __str__(self):
+        return pprint.pformat(self.__dict__)
 
 
 def sgrl_master_controller(config, results_json):

@@ -13,10 +13,11 @@ from shutil import copy
 import copy as cp
 
 from ray import tune
+from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
 from torch_geometric.loader import DataLoader
 from torch_geometric.profile import profileit, timeit
-from torch_geometric.transforms import OneHotDegree, NormalizeFeatures
+from torch_geometric.transforms import NormalizeFeatures
 from tqdm import tqdm
 import pdb
 
@@ -28,7 +29,7 @@ from torch_sparse import coalesce, SparseTensor
 
 from torch_geometric.datasets import Planetoid, AttributedGraphDataset, WikipediaNetwork, WebKB, Coauthor
 from torch_geometric.data import Dataset, InMemoryDataset, Data
-from torch_geometric.utils import to_undirected, to_dense_adj
+from torch_geometric.utils import to_undirected
 
 from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 
@@ -41,12 +42,9 @@ from models import SAGE, DGCNN, GCN, GIN, SIGNNet
 from n2v_prep import node_2_vec_pretrain
 
 from profiler_utils import profile_helper
-from tuned_SIGN import TunedSIGN
 # DO NOT REMOVE AA CN PPR IMPORTS
-from utils import get_pos_neg_edges, extract_enclosing_subgraphs, construct_pyg_graph, k_hop_subgraph, do_edge_split, \
-    Logger, AA, CN, PPR, calc_ratio_helper, create_rw_cache
-
-import numpy as np
+from utils import get_pos_neg_edges, extract_enclosing_subgraphs, do_edge_split, Logger, AA, CN, PPR, calc_ratio_helper, \
+    create_rw_cache, adjust_lr
 
 warnings.simplefilter('ignore', SparseEfficiencyWarning)
 warnings.simplefilter('ignore', FutureWarning)
@@ -431,7 +429,7 @@ def profile_train(model, train_loader, optimizer, device, emb, train_dataset, ar
     return total_loss / len(train_dataset)
 
 
-def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args):
+def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch):
     # normal training with BCE logit loss
     model.train()
 
@@ -466,7 +464,8 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args):
     return total_loss / len(train_dataset)
 
 
-def train_pairwise(model, train_positive_loader, train_negative_loader, optimizer, device, emb, train_dataset, args):
+def train_pairwise(model, train_positive_loader, train_negative_loader, optimizer, device, emb, train_dataset, args,
+                   epoch):
     # pairwise training with AUC loss + many others from PLNLP paper
     model.train()
 
@@ -510,8 +509,12 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
         else:
             neg_logits = model(neg_num_nodes, neg_data.z, neg_data.edge_index, neg_data.batch, neg_x, neg_edge_weight,
                                neg_node_id)
+
         loss_fn = get_loss(args.loss_fn)
         loss = loss_fn(pos_logits, neg_logits, args.neg_ratio)
+
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
+        adjust_lr(optimizer, epoch / args.epochs, args.lr)
 
         loss.backward()
         optimizer.step()
@@ -783,6 +786,7 @@ def run_sgrl_learning_with_ray(config, hyper_param_class, device):
 
 
 def run_sgrl_learning(args, device, hypertuning=False):
+    print(f"Current arguments accepted are: {args}")
     if args.save_appendix == '':
         args.save_appendix = '_' + time.strftime("%Y%m%d%H%M%S") + f'_seed{args.seed}'
         if args.m and args.M:
@@ -965,6 +969,23 @@ def run_sgrl_learning(args, device, hypertuning=False):
         args.eval_metric = 'auc'
         directed = False
 
+    if args.dataset == 'ogbl-collab' and args.split_by_year:
+        # Taken from https://github.com/yao8839836/ogb_report/blob/main/plnlp_sign.py
+        # filters training edges to edge_year >= 2010
+        if hasattr(data, 'edge_year'):
+            print("Filtering ogbl-collab training set to >= 2010 year")
+            selected_year_index = torch.reshape(
+                (split_edge['train']['year'] >= 2010).nonzero(as_tuple=False), (-1,))
+            split_edge['train']['edge'] = split_edge['train']['edge'][selected_year_index]
+            split_edge['train']['weight'] = split_edge['train']['weight'][selected_year_index]
+            split_edge['train']['year'] = split_edge['train']['year'][selected_year_index]
+            train_edge_index = split_edge['train']['edge'].t()
+            # create adjacency matrix
+            new_edges = to_undirected(train_edge_index, split_edge['train']['weight'])  # , reduce='add'
+            new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
+            data.edge_weight = new_edge_weight.to(torch.float32)
+            data.edge_index = new_edge_index
+
     if args.use_valedges_as_input:
         val_edge_index = split_edge['valid']['edge'].t()
         if not directed:
@@ -974,7 +995,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
         try:
             if torch.any(data.edge_weight):
                 val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
-                data.edge_weight = torch.cat([data.edge_weight, val_edge_weight], 0)
+                data.edge_weight = torch.cat([data.edge_weight.reshape(data.edge_weight.shape[0], 1), val_edge_weight],
+                                             0)
         except Exception as e:
             print(str(e), "passing edge weight setting")
 
@@ -1272,9 +1294,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         if args.pairwise:
             train_pos_loader = DataLoader(train_positive_dataset, batch_size=args.batch_size,
-                                          shuffle=True, num_workers=args.num_workers)
+                                          shuffle=True, num_workers=args.num_workers, follow_batch=follow_batch)
             train_neg_loader = DataLoader(train_negative_dataset, batch_size=args.batch_size * args.neg_ratio,
-                                          shuffle=True, num_workers=args.num_workers)
+                                          shuffle=True, num_workers=args.num_workers, follow_batch=follow_batch)
         else:
             train_loader = DataLoader(train_dataset, batch_size=args.batch_size,
                                       shuffle=True, num_workers=args.num_workers, follow_batch=follow_batch)
@@ -1330,6 +1352,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             torch.nn.init.xavier_uniform_(emb.weight)
             parameters += list(emb.parameters())
         optimizer = torch.optim.Adam(params=parameters, lr=args.lr, weight_decay=1e-4)
+        scd = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10,
+                                             min_lr=5e-5)
         total_params = sum(p.numel() for param in parameters for p in param)
         print(f'Total number of parameters is {total_params}')
         if args.model == 'DGCNN':
@@ -1419,13 +1443,14 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
                 if not args.pairwise:
                     time_start_for_train_epoch = default_timer()
-                    loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args)
+                    loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch)
                     time_end_for_train_epoch = default_timer()
+                    scd.step(loss)
                     all_train_times.append(time_end_for_train_epoch - time_start_for_train_epoch)
                 else:
                     loss = train_pairwise(model, train_pos_loader, train_neg_loader, optimizer, device, emb,
                                           train_dataset,
-                                          args)
+                                          args, epoch)
 
             if epoch % args.eval_steps == 0:
                 results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args)
@@ -1454,6 +1479,11 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         with open(log_file, 'a') as f:
                             print(key, file=f)
                             print(to_print, file=f)
+                with open(log_file, 'a') as f:
+                    for key, result in results.items():
+                        print(key)
+                        picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
+                        print(f'Picked Valid: {picked_val:.2f}, Picked Test: {picked_test:.2f}')
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers
@@ -1632,6 +1662,7 @@ if __name__ == '__main__':
     parser.add_argument('--init_representation', type=str, choices=['GIC', 'ARGVA', 'GAE', 'VGAE'])
 
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
+    parser.add_argument('--split_by_year', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
