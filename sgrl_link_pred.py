@@ -984,9 +984,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             # create adjacency matrix
             new_edges = to_undirected(train_edge_index, split_edge['train']['weight'])  # , reduce='add'
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
-            data.adj_t = SparseTensor(row=new_edge_index[0],
-                                      col=new_edge_index[1],
-                                      value=new_edge_weight.to(torch.float32))
+            data.edge_weight = new_edge_weight.to(torch.float32)
             data.edge_index = new_edge_index
 
     if args.use_valedges_as_input:
@@ -998,7 +996,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
         try:
             if torch.any(data.edge_weight):
                 val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
-                data.edge_weight = torch.cat([data.edge_weight, val_edge_weight], 0)
+                data.edge_weight = torch.cat([data.edge_weight.reshape(data.edge_weight.shape[0], 1), val_edge_weight],
+                                             0)
         except Exception as e:
             print(str(e), "passing edge weight setting")
 
