@@ -100,6 +100,7 @@ class OptimizedSignOperations:
         all_subgraphs = vstack(all_subgraphs)
         x1 = all_subgraphs @ x
 
+        x1 = torch.from_numpy(x1)
         if verbose:
             print("Finishing with Data object creation")
 
