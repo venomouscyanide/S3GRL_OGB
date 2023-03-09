@@ -999,12 +999,14 @@ def run_sgrl_learning(args, device, hypertuning=False):
         data.adj_t = SparseTensor(row=new_edge_index[0],
                                   col=new_edge_index[1],
                                   value=new_edge_weight.to(torch.float32))
-        data.edge_index = new_edge_index
 
         full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, data.num_nodes, data.num_nodes)
 
         # edge weight normalization
         split_edge['train']['edge'] = full_edge_index.t()
+        data.edge_index = split_edge['train']['edge'].t()
+        data.edge_weight = full_edge_weight
+
         deg = data.adj_t.sum(dim=1).to(torch.float)
         deg_inv_sqrt = deg.pow(-0.5)
         deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
@@ -1145,7 +1147,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     # SEAL.
     path = dataset.root + '_seal{}'.format(args.data_appendix)
-    use_coalesce = False if args.dataset == 'ogbl-collab' else False
+    use_coalesce = True if args.dataset == 'ogbl-collab' else False
     if not args.dynamic_train and not args.dynamic_val and not args.dynamic_test:
         args.num_workers = 0
 
