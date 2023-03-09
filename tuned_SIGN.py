@@ -4,11 +4,13 @@ from torch_geometric.data import Data
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.transforms import SIGN
 from torch_sparse import SparseTensor, from_scipy, spspmm
-import torch.nn.functional as F
+
 from tqdm import tqdm
 
 import scipy.sparse as ssp
 import numpy as np
+
+from scipy.sparse import vstack
 
 
 class TunedSIGN(SIGN):
@@ -68,22 +70,23 @@ class OptimizedSignOperations:
 
         if verbose:
             print("Stacking all links' rows")
+        lil_matrix = power_of_a.to_scipy().tolil()
 
         for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
             src, dst = list_of_training_edges[int(link_number / 2)]
-            interim_src = power_of_a[src].to_dense()[0]
-            interim_src[dst] = 0
-            interim_dst = power_of_a[dst].to_dense()[0]
-            interim_dst[src] = 0
+            interim_src = lil_matrix[src]
+            interim_src[0, dst] = 0
+            interim_dst = lil_matrix[dst]
+            interim_dst[0, src] = 0
 
-            interim_src_tensor = interim_src.to(dtype=torch.bool)
-            interim_dst_tensor = interim_dst.to(dtype=torch.bool)
+            interim_src_tensor = torch.tensor(interim_src.todense(), dtype=torch.bool)[0]
+            interim_dst_tensor = torch.tensor(interim_dst.todense(), dtype=torch.bool)[0]
             interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
             intersection_indices = (interim == True).nonzero(as_tuple=True)[0]
 
             # cn = power_of_a[intersection_indices]
             all_indices = intersection_indices.tolist() + [src, dst]
-            subgraph = power_of_a[all_indices].to_dense()
+            subgraph = lil_matrix[all_indices]
             all_subgraphs.append(subgraph)
             start_index.append(start)
             next = start + len(all_indices)
@@ -94,7 +97,7 @@ class OptimizedSignOperations:
             ys.append(y)
         if verbose:
             print("Multiplying in one-shot")
-        all_subgraphs = torch.cat(all_subgraphs, dim=0)
+        all_subgraphs = vstack(all_subgraphs)
         x1 = all_subgraphs @ x
 
         if verbose:
