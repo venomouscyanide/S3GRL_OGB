@@ -1010,6 +1010,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
         split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
             full_edge_index[1]]
+        data.edge_weight = None
 
         row, col, edge_weight = data.adj_t.coo()
         subset = set(row.tolist()).union(set(col.tolist()))
