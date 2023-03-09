@@ -47,6 +47,49 @@ class TunedSIGN(SIGN):
 
 class OptimizedSignOperations:
     @staticmethod
+    def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False):
+        # print("SoP Plus Optimized Flow.")
+        # optimized SoP flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
+        normalized_powers_of_A = powers_of_A
+
+        list_of_training_edges = link_index.t().tolist()
+        num_training_egs = len(list_of_training_edges)
+
+        all_data = []
+
+        if verbose:
+            print("Setting up A Global List")
+        for index, power_of_a in enumerate(normalized_powers_of_A, start=0):
+            if verbose:
+                print(f"Constructing A[{index}]")
+
+            for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
+                src, dst = list_of_training_edges[int(link_number / 2)]
+                interim_src = power_of_a[src].to_dense()
+                interim_src[0, dst] = 0
+                interim_dst = power_of_a[dst].to_dense()
+                interim_dst[0, src] = 0
+
+                if index == 0:
+                    interim_src_tensor = torch.tensor(interim_src[0], dtype=torch.bool)[0]
+                    interim_dst_tensor = torch.tensor(interim_dst[0], dtype=torch.bool)[0]
+                    interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
+                    intersection_indices = (interim == True).nonzero(as_tuple=True)[0]
+
+                # cn = power_of_a[intersection_indices]
+                all_indices = intersection_indices.tolist() + [src, dst]
+                subgraph = power_of_a[all_indices]
+
+                subgraph_X = subgraph @ x
+
+                data = Data(
+                    x=x[[all_indices]], y=y,
+                )
+                setattr(data, f"x{index + 1}", subgraph_X)
+                all_data.append(data)
+        return all_data
+
+    @staticmethod
     def get_SoP_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False):
         # print("SoP Optimized Flow.")
         # optimized SoP flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
