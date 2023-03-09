@@ -57,7 +57,6 @@ class OptimizedSignOperations:
         num_training_egs = len(list_of_training_edges)
 
         all_data = []
-        power_of_a_dense = powers_of_A[0].to_dense()
         power_of_a = powers_of_A[0]
 
         xs = []
@@ -72,9 +71,9 @@ class OptimizedSignOperations:
 
         for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
             src, dst = list_of_training_edges[int(link_number / 2)]
-            interim_src = power_of_a_dense[src]
+            interim_src = power_of_a[src].to_dense()[0]
             interim_src[dst] = 0
-            interim_dst = power_of_a_dense[dst]
+            interim_dst = power_of_a[dst].to_dense()[0]
             interim_dst[src] = 0
 
             interim_src_tensor = interim_src.to(dtype=torch.bool)
