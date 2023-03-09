@@ -50,58 +50,63 @@ class OptimizedSignOperations:
     def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False):
         # print("SoP Plus Optimized Flow.")
         # optimized SoP flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
-        normalized_powers_of_A = powers_of_A
+        if len(powers_of_A) > 1:
+            raise NotImplementedError
 
         list_of_training_edges = link_index.t().tolist()
         num_training_egs = len(list_of_training_edges)
 
         all_data = []
+        power_of_a_dense = powers_of_A[0].to_dense()
+        power_of_a = powers_of_A[0]
+
+        xs = []
+        ys = []
+        start_index = []
+        end_index = []
+        all_subgraphs = []
+        start = 0
 
         if verbose:
-            print("Setting up A Global List")
-        for index, power_of_a in enumerate(normalized_powers_of_A, start=0):
-            if verbose:
-                print(f"Constructing A[{index}]")
-            xs = []
-            ys = []
-            start_index = []
-            end_index = []
-            all_subgraphs = []
-            start = 0
-            for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
-                src, dst = list_of_training_edges[int(link_number / 2)]
-                interim_src = power_of_a[src].to_dense()
-                interim_src[0, dst] = 0
-                interim_dst = power_of_a[dst].to_dense()
-                interim_dst[0, src] = 0
+            print("Stacking all links' rows")
 
-                if index == 0:
-                    interim_src_tensor = torch.tensor(interim_src[0], dtype=torch.bool)
-                    interim_dst_tensor = torch.tensor(interim_dst[0], dtype=torch.bool)
-                    interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
-                    intersection_indices = (interim == True).nonzero(as_tuple=True)[0]
+        for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
+            src, dst = list_of_training_edges[int(link_number / 2)]
+            interim_src = power_of_a_dense[src]
+            interim_src[dst] = 0
+            interim_dst = power_of_a_dense[dst]
+            interim_dst[src] = 0
 
-                # cn = power_of_a[intersection_indices]
-                all_indices = intersection_indices.tolist() + [src, dst]
-                subgraph = power_of_a[all_indices].to_dense()
-                all_subgraphs.append(subgraph)
-                start_index.append(start)
-                next = start + len(all_indices)
-                end_index.append(next - 1)
-                start = next
+            interim_src_tensor = interim_src.to(dtype=torch.bool)
+            interim_dst_tensor = interim_dst.to(dtype=torch.bool)
+            interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
+            intersection_indices = (interim == True).nonzero(as_tuple=True)[0]
 
-                xs.append(x[[all_indices]])
-                ys.append(y)
+            # cn = power_of_a[intersection_indices]
+            all_indices = intersection_indices.tolist() + [src, dst]
+            subgraph = power_of_a[all_indices].to_dense()
+            all_subgraphs.append(subgraph)
+            start_index.append(start)
+            next = start + len(all_indices)
+            end_index.append(next - 1)
+            start = next
 
-            all_subgraphs = torch.cat(all_subgraphs, dim=0)
-            x1 = all_subgraphs @ x
+            xs.append(x[[all_indices]])
+            ys.append(y)
+        if verbose:
+            print("Multiplying in one-shot")
+        all_subgraphs = torch.cat(all_subgraphs, dim=0)
+        x1 = all_subgraphs @ x
 
-            for link_number in tqdm(range(0, num_training_egs), disable=not verbose, ncols=70):
-                data = Data(
-                    x=xs[link_number], y=ys[link_number],
-                )
-                setattr(data, f"x{index + 1}", x1[start_index[link_number]: end_index[link_number] + 1])
-                all_data.append(data)
+        if verbose:
+            print("Finishing with Data object creation")
+
+        for link_number in tqdm(range(0, num_training_egs), disable=not verbose, ncols=70):
+            data = Data(
+                x=xs[link_number], y=ys[link_number],
+            )
+            setattr(data, f"x1", x1[start_index[link_number]: end_index[link_number] + 1])
+            all_data.append(data)
 
         return all_data
 
