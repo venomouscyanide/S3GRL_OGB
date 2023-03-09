@@ -62,7 +62,12 @@ class OptimizedSignOperations:
         for index, power_of_a in enumerate(normalized_powers_of_A, start=0):
             if verbose:
                 print(f"Constructing A[{index}]")
-
+            xs = []
+            ys = []
+            start_index = []
+            end_index = []
+            all_subgraphs = []
+            start = 0
             for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
                 src, dst = list_of_training_edges[int(link_number / 2)]
                 interim_src = power_of_a[src].to_dense()
@@ -71,22 +76,33 @@ class OptimizedSignOperations:
                 interim_dst[0, src] = 0
 
                 if index == 0:
-                    interim_src_tensor = torch.tensor(interim_src[0], dtype=torch.bool)[0]
-                    interim_dst_tensor = torch.tensor(interim_dst[0], dtype=torch.bool)[0]
+                    interim_src_tensor = torch.tensor(interim_src[0], dtype=torch.bool)
+                    interim_dst_tensor = torch.tensor(interim_dst[0], dtype=torch.bool)
                     interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
                     intersection_indices = (interim == True).nonzero(as_tuple=True)[0]
 
                 # cn = power_of_a[intersection_indices]
                 all_indices = intersection_indices.tolist() + [src, dst]
-                subgraph = power_of_a[all_indices]
+                subgraph = power_of_a[all_indices].to_dense()
+                all_subgraphs.append(subgraph)
+                start_index.append(start)
+                next = start + len(all_indices)
+                end_index.append(next - 1)
+                start = next
 
-                subgraph_X = subgraph @ x
+                xs.append(x[[all_indices]])
+                ys.append(y)
 
+            all_subgraphs = torch.cat(all_subgraphs, dim=0)
+            x1 = all_subgraphs @ x
+
+            for link_number in tqdm(range(0, num_training_egs), disable=not verbose, ncols=70):
                 data = Data(
-                    x=x[[all_indices]], y=y,
+                    x=xs[link_number], y=ys[link_number],
                 )
-                setattr(data, f"x{index + 1}", subgraph_X)
+                setattr(data, f"x{index + 1}", x1[start_index[link_number]: end_index[link_number] + 1])
                 all_data.append(data)
+
         return all_data
 
     @staticmethod
