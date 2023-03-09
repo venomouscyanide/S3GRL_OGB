@@ -1001,7 +1001,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                                   value=new_edge_weight.to(torch.float32))
         data.edge_index = new_edge_index
 
-        full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, data.num_nodes, data.num_nodes)
+        # full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, data.num_nodes, data.num_nodes)
 
         # edge weight normalization
         split_edge['train']['edge'] = full_edge_index.t()
