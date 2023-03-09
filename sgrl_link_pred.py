@@ -1001,7 +1001,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                                   value=new_edge_weight.to(torch.float32))
         data.edge_index = new_edge_index
 
-        # full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, data.num_nodes, data.num_nodes)
+        full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, data.num_nodes, data.num_nodes)
 
         # edge weight normalization
         split_edge['train']['edge'] = full_edge_index.t()
@@ -1164,7 +1164,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     # SEAL.
     path = dataset.root + '_seal{}'.format(args.data_appendix)
-    use_coalesce = True if args.dataset == 'ogbl-collab' else False
+    use_coalesce = False if args.dataset == 'ogbl-collab' else False
     if not args.dynamic_train and not args.dynamic_val and not args.dynamic_test:
         args.num_workers = 0
 
