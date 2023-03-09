@@ -458,6 +458,7 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
 
         loss = BCEWithLogitsLoss()(logits.view(-1), data.y.to(torch.float))
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
         total_loss += loss.item() * data.num_graphs
 
@@ -985,20 +986,51 @@ def run_sgrl_learning(args, device, hypertuning=False):
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
             data.edge_weight = new_edge_weight.to(torch.float32)
             data.edge_index = new_edge_index
+            data.adj_t = SparseTensor(row=new_edge_index[0],
+                                      col=new_edge_index[1],
+                                      value=new_edge_weight.to(torch.float32))
 
     if args.use_valedges_as_input:
-        val_edge_index = split_edge['valid']['edge'].t()
-        if not directed:
-            val_edge_index = to_undirected(val_edge_index)
-        data.edge_index = torch.cat([data.edge_index, val_edge_index], dim=-1)
-        split_edge['train']['edge'] = data.edge_index.t()
-        try:
-            if torch.any(data.edge_weight):
-                val_edge_weight = torch.ones([val_edge_index.size(1), 1], dtype=int)
-                data.edge_weight = torch.cat([data.edge_weight.reshape(data.edge_weight.shape[0], 1), val_edge_weight],
-                                             0)
-        except Exception as e:
-            print(str(e), "passing edge weight setting")
+        full_edge_index = torch.cat([split_edge['valid']['edge'].t(), split_edge['train']['edge'].t()], dim=-1)
+        full_edge_weight = torch.cat([split_edge['train']['weight'], split_edge['valid']['weight']], dim=-1)
+        # create adjacency matrix
+        new_edges = to_undirected(full_edge_index, full_edge_weight, reduce='add')
+        new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
+        data.adj_t = SparseTensor(row=new_edge_index[0],
+                                  col=new_edge_index[1],
+                                  value=new_edge_weight.to(torch.float32))
+        data.edge_index = new_edge_index
+
+        if args.use_coalesce:
+            full_edge_index, full_edge_weight = coalesce(full_edge_index, full_edge_weight, num_nodes, num_nodes)
+
+        # edge weight normalization
+        split_edge['train']['edge'] = full_edge_index.t()
+        deg = data.adj_t.sum(dim=1).to(torch.float)
+        deg_inv_sqrt = deg.pow(-0.5)
+        deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
+        split_edge['train']['weight'] = deg_inv_sqrt[full_edge_index[0]] * full_edge_weight * deg_inv_sqrt[
+            full_edge_index[1]]
+
+        row, col, edge_weight = data.adj_t.coo()
+        subset = set(row.tolist()).union(set(col.tolist()))
+        subset, _ = torch.sort(torch.tensor(list(subset)))
+        # For unseen node we set its index as -1
+        n_idx = torch.zeros(data.num_nodes, dtype=torch.long) - 1
+        n_idx[subset] = torch.arange(subset.size(0))
+        # Reindex edge_index, adj_t, num_nodes
+        data.edge_index = n_idx[data.edge_index]
+        data.adj_t = SparseTensor(row=n_idx[row], col=n_idx[col], value=edge_weight)
+        num_nodes = subset.size(0)
+        if hasattr(data, 'x'):
+            if data.x is not None:
+                data.x = data.x[subset]
+        # Reindex train valid test edges
+        split_edge['train']['edge'] = n_idx[split_edge['train']['edge']]
+        split_edge['valid']['edge'] = n_idx[split_edge['valid']['edge']]
+        split_edge['valid']['edge_neg'] = n_idx[split_edge['valid']['edge_neg']]
+        split_edge['test']['edge'] = n_idx[split_edge['test']['edge']]
+        split_edge['test']['edge_neg'] = n_idx[split_edge['test']['edge_neg']]
 
     if init_features:
         print(f"Init features using: {init_features}")
