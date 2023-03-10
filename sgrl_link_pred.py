@@ -164,8 +164,8 @@ class SEALDataset(InMemoryDataset):
 
                 row, col = edge_index
                 adj_t = SparseTensor(row=row, col=col,
-                                     sparse_sizes=(num_nodes, num_nodes)
-                                     )
+                                     sparse_sizes=(num_nodes, num_nodes),
+                                     value=edge_weight)
 
                 deg = adj_t.sum(dim=1).to(torch.float)
                 deg_inv_sqrt = deg.pow(-0.5)
@@ -321,8 +321,8 @@ class SEALDynamicDataset(Dataset):
 
                 row, col = edge_index
                 adj_t = SparseTensor(row=row, col=col,
-                                     sparse_sizes=(num_nodes, num_nodes)
-                                     )
+                                     sparse_sizes=(num_nodes, num_nodes),
+                                     value=edge_weight)
 
                 deg = adj_t.sum(dim=1).to(torch.float)
                 deg_inv_sqrt = deg.pow(-0.5)
