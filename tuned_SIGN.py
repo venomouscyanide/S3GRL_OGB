@@ -1,3 +1,5 @@
+import random
+
 import torch
 from scipy.sparse import dok_matrix
 from torch_geometric.data import Data
@@ -49,7 +51,7 @@ class TunedSIGN(SIGN):
 
 class OptimizedSignOperations:
     @staticmethod
-    def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False):
+    def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False, ratio_per_hop=1):
         # print("SoP Plus Optimized Flow.")
         # optimized SoP flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
         if len(powers_of_A) > 1:
@@ -82,10 +84,13 @@ class OptimizedSignOperations:
             interim_src_tensor = torch.tensor(interim_src.todense(), dtype=torch.bool)[0]
             interim_dst_tensor = torch.tensor(interim_dst.todense(), dtype=torch.bool)[0]
             interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
-            intersection_indices = (interim == True).nonzero(as_tuple=True)[0]
+            intersection_indices = (interim == True).nonzero(as_tuple=True)[0].tolist()
+            if ratio_per_hop != 1:
+                intersection_indices = random.sample(intersection_indices,
+                                                     int(ratio_per_hop * len(intersection_indices)))
 
             # cn = power_of_a[intersection_indices]
-            all_indices = intersection_indices.tolist() + [src, dst]
+            all_indices = intersection_indices + [src, dst]
             subgraph = lil_matrix[all_indices]
             all_subgraphs.append(subgraph)
             start_index.append(start)
