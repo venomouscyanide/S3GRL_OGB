@@ -101,8 +101,10 @@ class OptimizedSignOperations:
             xs.append(x[[all_indices]])
             ys.append(y)
         if verbose:
-            print("Multiplying in one-shot")
+            print("Vstacking individual links")
         all_subgraphs = vstack(all_subgraphs)
+        if verbose:
+            print("Multiplying in one-shot")
         x1 = all_subgraphs @ x
 
         x1 = torch.from_numpy(x1)
