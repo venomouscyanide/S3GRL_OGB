@@ -12,8 +12,7 @@ import os.path as osp
 from shutil import copy
 import copy as cp
 
-from gtrick.dgl import ResourceAllocation, AdamicAdar, AnchorDistance
-from gtrick.pyg import CommonNeighbors
+from gtrick.pyg import ResourceAllocation, AdamicAdar, AnchorDistance, CommonNeighbors
 from ray import tune
 from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
