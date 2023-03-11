@@ -85,7 +85,7 @@
         "k_pool_strategy": "mean",
         "init_representation": "",
         "use_mlp": false,
-        "split_by_year": false
+        "split_by_year": true
       }
     }
   }
