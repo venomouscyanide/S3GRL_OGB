@@ -34,7 +34,7 @@
         "lr": 0.0001,
         "epochs": 25,
         "runs": 1,
-        "train_percent": 15,
+        "train_percent": 100,
         "val_percent": 100,
         "test_percent": 100,
         "dynamic_train": true,
