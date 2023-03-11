@@ -17,7 +17,7 @@ from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
 from torch_geometric.loader import DataLoader
 from torch_geometric.profile import profileit, timeit
-from torch_geometric.transforms import NormalizeFeatures
+from torch_geometric.transforms import NormalizeFeatures, OneHotDegree
 from tqdm import tqdm
 import pdb
 
@@ -1003,13 +1003,16 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if init_features:
         print(f"Init features using: {init_features}")
 
-    if init_features == "degree":
+    if init_features == "degree_full":
         import torch.nn.functional as F
         from torch_geometric.utils import degree
         idx, x = data.edge_index[0], data.x
         deg = degree(idx, data.num_nodes, dtype=torch.long)
         deg = F.one_hot(deg, num_classes=max(deg) + 1).to(torch.float)
         data.x = deg
+    elif init_features == "degree":
+        one_hot_deg = OneHotDegree(max_degree=128, cat=True)
+        data.x = one_hot_deg(data).x
     elif init_features == "ones":
         data.x = torch.ones(size=(data.num_nodes, args.hidden_channels))
     elif init_features == "zeros":
