@@ -1070,7 +1070,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         elif args.edge_feature == 'ad':
             ef = AnchorDistance(data, 3, 500, 200)
             edim = 3
-        data.edge_weight = ef(edges=data.edge_index.t()).to(device)
+        data.edge_weight = ef(edges=data.edge_index.t())
 
     evaluator = None
     if args.dataset.startswith('ogbl'):
