@@ -77,7 +77,8 @@
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
         "init_representation": "",
-        "split_by_year": false
+        "split_by_year": false,
+        "edge_feature": "aa"
       }
     },
     "ogbl_ppa_pos_plus": {

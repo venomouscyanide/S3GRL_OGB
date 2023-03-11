@@ -12,6 +12,8 @@ import os.path as osp
 from shutil import copy
 import copy as cp
 
+from gtrick.dgl import ResourceAllocation, AdamicAdar, AnchorDistance
+from gtrick.pyg import CommonNeighbors
 from ray import tune
 from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
@@ -1057,6 +1059,19 @@ def run_sgrl_learning(args, device, hypertuning=False):
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
+
+    if args.edge_feature:
+        edim = 1
+        if args.edge_feature == 'cn':
+            ef = CommonNeighbors(data.edge_index, batch_size=1024)
+        elif args.edge_feature == 'ra':
+            ef = ResourceAllocation(data.edge_index, batch_size=1024)
+        elif args.edge_feature == 'aa':
+            ef = AdamicAdar(data.edge_index, batch_size=1024)
+        elif args.edge_feature == 'ad':
+            ef = AnchorDistance(data, 3, 500, 200)
+            edim = 3
+        data.edge_weight = ef(edges=data.edge_index.t()).to(device)
 
     evaluator = None
     if args.dataset.startswith('ogbl'):
