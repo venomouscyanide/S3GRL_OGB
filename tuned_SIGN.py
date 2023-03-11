@@ -1,6 +1,7 @@
 import torch
 from scipy.sparse import dok_matrix
 from torch_geometric.data import Data
+from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.transforms import SIGN
 from torch_sparse import SparseTensor, from_scipy, spspmm
 import torch.nn.functional as F
@@ -213,21 +214,17 @@ class OptimizedSignOperations:
                                  directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
             csr_subgraph = tmp[1]
             csr_shape = csr_subgraph.shape[0]
+
             u, v, value = ssp.find(csr_subgraph)
             u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
-            adj_t = SparseTensor(row=u, col=v, value=value,
-                                 sparse_sizes=(csr_shape, csr_shape))
 
-            deg = adj_t.sum(dim=1).to(torch.float)
-            deg_inv_sqrt = deg.pow(-0.5)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
-
+            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
             subgraph_features = tmp[3]
+            adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                 sparse_sizes=(csr_shape, csr_shape))
             subgraph = adj_t
 
             assert subgraph_features is not None
-
             powers_of_a = [subgraph]
 
             for _ in range(K - 1):
