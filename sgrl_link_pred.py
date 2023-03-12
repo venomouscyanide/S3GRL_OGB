@@ -1029,7 +1029,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     if True and args.dataset == 'ogbl-ddi':
         from aug_helper import get_features
-        extra_feats = get_features(data.num_nodes)
+        extra_feats = get_features(data.num_nodes, data)
         data.x = torch.cat([data.x, extra_feats], dim=-1)
 
     init_representation = args.init_representation

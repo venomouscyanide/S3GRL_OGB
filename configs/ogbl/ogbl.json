@@ -17,7 +17,7 @@
         "sortpool_k": -1,
         "num_layers": -1,
         "hidden_channels": 1024,
-        "batch_size": 1024,
+        "batch_size": 256,
         "num_hops": 1,
         "ratio_per_hop": 0.25,
         "max_nodes_per_hop": null,

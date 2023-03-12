@@ -3,6 +3,7 @@ import ast
 import pickle
 
 import torch
+from torch_geometric.utils import degree
 
 CLUSTER_FILENAME = "./features/clustering.txt"
 PAGERANK_FILENAME = "./features/pagerank.txt"
@@ -10,7 +11,7 @@ DEGREE_FILENAME = "./features/degree.pkl"
 CENTRALITY_FILENAME = "./features/centrality.pkl"
 
 
-def get_features(n_nodes):
+def get_features(n_nodes, data):
     with open(PAGERANK_FILENAME, "r") as f:
         contents = f.read()
         pagerank_dict = ast.literal_eval(contents)
@@ -21,9 +22,7 @@ def get_features(n_nodes):
         clustering_dict = ast.literal_eval(contents)
     cluster_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
 
-    with open(DEGREE_FILENAME, "rb") as f:
-        degree_dict = pickle.load(f)
-    degree_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
+    degree_vals = degree(data.edge_index[1], data.num_nodes, dtype=torch.long).reshape(shape=(n_nodes, 1))
 
     with open(CENTRALITY_FILENAME, "rb") as f:
         centrality_dict = pickle.load(f)
