@@ -23,7 +23,7 @@
         "model": "SIGN",
         "sortpool_k": -1,
         "num_layers": -1,
-        "hidden_channels": 128,
+        "hidden_channels": 1024,
         "batch_size": 64,
         "num_hops": 1,
         "ratio_per_hop": 1,
