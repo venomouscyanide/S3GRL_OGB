@@ -1027,15 +1027,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
         data.x = node_2_vec_pretrain(args.dataset, data.edge_index, data.num_nodes, args.n2v_dim, args.seed, device,
                                      args.epochs, hypertuning, extra_identifier)
 
-    if args.dataset == 'ogbl-ddi':
-        from aug_helper import get_features
-        extra_feats = get_features(data.num_nodes, data)
-        data.x = torch.cat([data.x, extra_feats], dim=-1)
-
-    if args.dataset == 'ogbl-vessel':
-        data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
-                           dim=-1)
-
     init_representation = args.init_representation
     if init_representation:
         print(f"Init representation using: {init_representation} model")
@@ -1062,6 +1053,15 @@ def run_sgrl_learning(args, device, hypertuning=False):
             args.hidden_channels = original_hidden_dims
         else:
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
+
+    if args.dataset == 'ogbl-ddi':
+        from aug_helper import get_features
+        extra_feats = get_features(data.num_nodes, data)
+        data.x = torch.cat([data.x, extra_feats], dim=-1)
+
+    if args.dataset == 'ogbl-vessel':
+        data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
+                           dim=-1)
 
     if init_representation or init_features or args.use_feature:
         norm = NormalizeFeatures()
