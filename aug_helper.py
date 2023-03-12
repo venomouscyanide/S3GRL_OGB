@@ -1,9 +1,10 @@
-# https://github.com/chuanqichen/cs224w/blob/aeebce6810221bf04a9a14d8d4369be76691b608/ddi/gnn_augmented_node2vec_random.py#L151
+# Adapted from: https://github.com/chuanqichen/cs224w/blob/aeebce6810221bf04a9a14d8d4369be76691b608/ddi/gnn_augmented_node2vec_random.py#L151
 import ast
 import pickle
 
 import torch
-from torch_geometric.utils import degree
+from networkx import degree_centrality
+from torch_geometric.utils import degree, to_networkx
 
 CLUSTER_FILENAME = "./features/clustering.txt"
 PAGERANK_FILENAME = "./features/pagerank.txt"
@@ -23,7 +24,8 @@ def get_features(n_nodes, data):
     cluster_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
 
     # degree_vals = degree(data.edge_index[1], data.num_nodes, dtype=torch.long).reshape(shape=(n_nodes, 1))
-    degree_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
+    # degree_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
+    degree_vals = torch.FloatTensor(list(degree_centrality(to_networkx(data)).values())).reshape((n_nodes, 1))
 
     with open(CENTRALITY_FILENAME, "rb") as f:
         centrality_dict = pickle.load(f)

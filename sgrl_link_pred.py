@@ -1080,6 +1080,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             ef = AnchorDistance(data, 3, 500, 200)
             edim = 3
         data.edge_weight = ef(edges=data.edge_index.t())
+        if edim > 1:
+            data.edge_weight = torch.mean(data.edge_weight, dim=-1)
 
     evaluator = None
     if args.dataset.startswith('ogbl'):

@@ -78,7 +78,7 @@
         "k_pool_strategy": "mean",
         "init_representation": "GIC",
         "split_by_year": false,
-        "edge_feature": "cn"
+        "edge_feature": "ad"
       }
     },
     "ogbl_ppa_pos_plus": {
