@@ -27,7 +27,7 @@ def get_features(n_nodes):
 
     with open(CENTRALITY_FILENAME, "rb") as f:
         centrality_dict = pickle.load(f)
-    centrality_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
+    centrality_vals = torch.FloatTensor(list(centrality_dict['betweenness_centrality'].values())).reshape((n_nodes, 1))
 
     ones = torch.ones((n_nodes, 1))
     features = torch.cat((ones, pagerank_vals, cluster_vals, centrality_vals, degree_vals), 1)
