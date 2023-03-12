@@ -22,7 +22,8 @@ def get_features(n_nodes, data):
         clustering_dict = ast.literal_eval(contents)
     cluster_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
 
-    degree_vals = degree(data.edge_index[1], data.num_nodes, dtype=torch.long).reshape(shape=(n_nodes, 1))
+    # degree_vals = degree(data.edge_index[1], data.num_nodes, dtype=torch.long).reshape(shape=(n_nodes, 1))
+    degree_vals = torch.FloatTensor(list(clustering_dict.values())).reshape((n_nodes, 1))
 
     with open(CENTRALITY_FILENAME, "rb") as f:
         centrality_dict = pickle.load(f)
