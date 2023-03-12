@@ -1027,6 +1027,11 @@ def run_sgrl_learning(args, device, hypertuning=False):
         data.x = node_2_vec_pretrain(args.dataset, data.edge_index, data.num_nodes, args.n2v_dim, args.seed, device,
                                      args.epochs, hypertuning, extra_identifier)
 
+    if True and args.dataset == 'ogbl-ddi':
+        from aug_helper import get_features
+        extra_feats = get_features(data.num_nodes)
+        data.x = torch.cat([data.x, extra_feats], dim=-1)
+
     init_representation = args.init_representation
     if init_representation:
         print(f"Init representation using: {init_representation} model")
