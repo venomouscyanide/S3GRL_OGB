@@ -1073,13 +1073,13 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 dis = distance_encoding(x, y)
                 distance_feature[x].append(dis)
 
-        data.x = torch.tensor(distance_feature, dtype=torch.float).to(device)
+        data.x = torch.tensor(distance_feature, dtype=torch.float)
 
     if args.dataset == 'ogbl-vessel':
         data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
                            dim=-1)
 
-    if False and init_representation or init_features or args.use_feature:
+    if False and (init_representation or init_features or args.use_feature):
         print("Normalizing features")
         norm = NormalizeFeatures()
         transformed_data = norm(data)
