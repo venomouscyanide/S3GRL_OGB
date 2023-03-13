@@ -2,11 +2,18 @@
   "datasets": {
     "ogbl_ppa_pos_plus": {
       "ds_params": {
-        "runs": 3,
+        "runs": 10,
         "seeds": [
           1,
           2,
-          3
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
         ],
         "dataset": "ogbl-ppa"
       },
