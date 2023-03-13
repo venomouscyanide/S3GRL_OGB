@@ -17,6 +17,7 @@ from ray import tune
 from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
 from torch_geometric.loader import DataLoader
+from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.profile import profileit, timeit
 from torch_geometric.transforms import NormalizeFeatures, OneHotDegree
 from tqdm import tqdm
@@ -163,19 +164,14 @@ class SEALDataset(InMemoryDataset):
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
-                row, col = edge_index
-                adj_t = SparseTensor(row=row, col=col,
-                                     sparse_sizes=(num_nodes, num_nodes),
-                                     value=edge_weight)
-
-                deg = adj_t.sum(dim=1).to(torch.float)
-                deg_inv_sqrt = deg.pow(-0.5)
-                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-                adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+                edge_index, value = gcn_norm(edge_index, edge_weight=edge_weight.to(torch.float),
+                                             add_self_loops=True)
+                adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                     sparse_sizes=(num_nodes, num_nodes))
 
                 print("Begin taking powers of A")
                 powers_of_A = [adj_t]
-                for sign_k in tqdm(range(2, self.args.sign_k + 1), ncols=70):
+                for _ in tqdm(range(2, self.args.sign_k + 1), ncols=70):
                     powers_of_A += [adj_t @ powers_of_A[-1]]
 
                 if not sign_kwargs['optimize_sign']:
@@ -315,20 +311,15 @@ class SEALDynamicDataset(Dataset):
 
         self.powers_of_A = []
         if self.args.model == 'SIGN':
-            if self.sign_type == 'SoP':
+            if self.sign_type == 'SoP' or sign_type == "hybrid":
 
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
-                row, col = edge_index
-                adj_t = SparseTensor(row=row, col=col,
-                                     sparse_sizes=(num_nodes, num_nodes),
-                                     value=edge_weight)
-
-                deg = adj_t.sum(dim=1).to(torch.float)
-                deg_inv_sqrt = deg.pow(-0.5)
-                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-                adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+                edge_index, value = gcn_norm(edge_index, edge_weight=edge_weight.to(torch.float),
+                                             add_self_loops=True)
+                adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                     sparse_sizes=(num_nodes, num_nodes))
 
                 print("Begin taking powers of A")
                 self.powers_of_A = [adj_t]
@@ -459,6 +450,7 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
 
         loss = BCEWithLogitsLoss()(logits.view(-1), data.y.to(torch.float))
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
         total_loss += loss.item() * data.num_graphs
 

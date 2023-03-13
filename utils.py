@@ -499,6 +499,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             return sup_data_list
         elif not sign_kwargs['optimize_sign']:
             # SIGN + SEAL flow; includes both PoS and SoP flows
+            # please note that the non-optimized flows have no gcn_norm-esque norms.
             print_out = True
             for src, dst in tqdm(link_index.t().tolist(), ncols=70):
                 if not powers_of_A:
@@ -560,13 +561,14 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
 
     for src, dst in tqdm(link_index.t().tolist(), ncols=70):
         if not rw_kwargs['rw_m']:
-            # SEAL flow
+            # vanilla SEAL flow
             tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
                                  max_nodes_per_hop, node_features=x, y=y,
                                  directed=directed, A_csc=A_csc)
 
             data = construct_pyg_graph(*tmp, node_label)
         else:
+            # SEAL + ScaLed flow
             data = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
                                   max_nodes_per_hop, node_features=x, y=y,
                                   directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)

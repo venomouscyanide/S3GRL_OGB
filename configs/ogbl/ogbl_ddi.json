@@ -2,11 +2,18 @@
   "datasets": {
     "ogbl_ddi_pos_plus": {
       "ds_params": {
-        "runs": 3,
+        "runs": 10,
         "seeds": [
           1,
           2,
-          3
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10
         ],
         "dataset": "ogbl-ddi"
       },
@@ -25,9 +32,9 @@
         "use_feature": true,
         "use_edge_weight": false,
         "lr": 0.005,
-        "epochs": 100,
+        "epochs": 200,
         "runs": 1,
-        "train_percent": 10,
+        "train_percent": 100,
         "val_percent": 100,
         "test_percent": 100,
         "dynamic_train": true,
@@ -74,11 +81,11 @@
         "init_features": "n2v",
         "n2v_dim": 8,
         "k_heuristic": 1,
-        "k_node_set_strategy": "intersection",
+        "k_node_set_strategy": "union",
         "k_pool_strategy": "mean",
-        "init_representation": "GIC",
+        "init_representation": "",
         "split_by_year": false,
-        "edge_feature": "ad"
+        "edge_feature": "cn"
       }
     }
   }
