@@ -668,6 +668,7 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
         neg_edge = neg_edge[:, perm]
 
     elif 'source_node' in split_edge['train']:
+        # this is for the directed case (ogbl-citation2 dataset)
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
         if split == 'train':
