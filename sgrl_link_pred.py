@@ -12,6 +12,7 @@ import os.path as osp
 from shutil import copy
 import copy as cp
 
+import torch_geometric
 from gtrick.pyg import ResourceAllocation, AdamicAdar, AnchorDistance, CommonNeighbors
 from ray import tune
 from torch.optim import lr_scheduler
@@ -1047,15 +1048,39 @@ def run_sgrl_learning(args, device, hypertuning=False):
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
 
     if args.dataset == 'ogbl-ddi':
-        from aug_helper import get_features
-        extra_feats = get_features(data.num_nodes, data)
-        data.x = torch.cat([data.x, extra_feats], dim=-1)
+        # from aug_helper import get_features
+        # extra_feats = get_features(data.num_nodes, data)
+        # data.x = torch.cat([data.x, extra_feats], dim=-1)
+        nx_data = torch_geometric.utils.to_networkx(data)
+        nx_data = nx_data.to_undirected()
+
+        import numpy as np
+        # Distance Matrix
+        def distance_encoding(x, y):
+            distance = len(nx.shortest_path(nx_data, source=x, target=y))
+            return distance
+
+        # Select k=512 nodes randomly in ddi graph as targets
+        badian = np.random.choice(4267, 512, replace=False)
+
+        distance_feature = []
+
+        print("Generating distance features")
+        for x in tqdm(range(0, 4267), ncols=70):
+            print(x)
+            distance_feature.append([])
+            for y in badian:
+                dis = distance_encoding(x, y)
+                distance_feature[x].append(dis)
+
+        data.x = torch.tensor(distance_feature, dtype=torch.float).to(device)
 
     if args.dataset == 'ogbl-vessel':
         data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
                            dim=-1)
 
-    if init_representation or init_features or args.use_feature:
+    if False and init_representation or init_features or args.use_feature:
+        print("Normalizing features")
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
