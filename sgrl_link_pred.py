@@ -12,12 +12,14 @@ import os.path as osp
 from shutil import copy
 import copy as cp
 
+from gtrick.pyg import ResourceAllocation, AdamicAdar, AnchorDistance, CommonNeighbors
 from ray import tune
 from torch.optim import lr_scheduler
 from torch_geometric import seed_everything
 from torch_geometric.loader import DataLoader
+from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.profile import profileit, timeit
-from torch_geometric.transforms import NormalizeFeatures
+from torch_geometric.transforms import NormalizeFeatures, OneHotDegree
 from tqdm import tqdm
 import pdb
 
@@ -162,19 +164,14 @@ class SEALDataset(InMemoryDataset):
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
-                row, col = edge_index
-                adj_t = SparseTensor(row=row, col=col,
-                                     sparse_sizes=(num_nodes, num_nodes)
-                                     )
-
-                deg = adj_t.sum(dim=1).to(torch.float)
-                deg_inv_sqrt = deg.pow(-0.5)
-                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-                adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+                edge_index, value = gcn_norm(edge_index, edge_weight=edge_weight.to(torch.float),
+                                             add_self_loops=True)
+                adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                     sparse_sizes=(num_nodes, num_nodes))
 
                 print("Begin taking powers of A")
                 powers_of_A = [adj_t]
-                for sign_k in tqdm(range(2, self.args.sign_k + 1), ncols=70):
+                for _ in tqdm(range(2, self.args.sign_k + 1), ncols=70):
                     powers_of_A += [adj_t @ powers_of_A[-1]]
 
                 if not sign_kwargs['optimize_sign']:
@@ -314,20 +311,15 @@ class SEALDynamicDataset(Dataset):
 
         self.powers_of_A = []
         if self.args.model == 'SIGN':
-            if self.sign_type == 'SoP':
+            if self.sign_type == 'SoP' or sign_type == "hybrid":
 
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
-                row, col = edge_index
-                adj_t = SparseTensor(row=row, col=col,
-                                     sparse_sizes=(num_nodes, num_nodes)
-                                     )
-
-                deg = adj_t.sum(dim=1).to(torch.float)
-                deg_inv_sqrt = deg.pow(-0.5)
-                deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-                adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+                edge_index, value = gcn_norm(edge_index, edge_weight=edge_weight.to(torch.float),
+                                             add_self_loops=True)
+                adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                     sparse_sizes=(num_nodes, num_nodes))
 
                 print("Begin taking powers of A")
                 self.powers_of_A = [adj_t]
@@ -458,6 +450,7 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
 
         loss = BCEWithLogitsLoss()(logits.view(-1), data.y.to(torch.float))
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
         optimizer.step()
         total_loss += loss.item() * data.num_graphs
 
@@ -1003,13 +996,16 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if init_features:
         print(f"Init features using: {init_features}")
 
-    if init_features == "degree":
+    if init_features == "degree_full":
         import torch.nn.functional as F
         from torch_geometric.utils import degree
         idx, x = data.edge_index[0], data.x
         deg = degree(idx, data.num_nodes, dtype=torch.long)
         deg = F.one_hot(deg, num_classes=max(deg) + 1).to(torch.float)
         data.x = deg
+    elif init_features == "degree":
+        one_hot_deg = OneHotDegree(max_degree=128, cat=True)
+        data.x = one_hot_deg(data).x
     elif init_features == "ones":
         data.x = torch.ones(size=(data.num_nodes, args.hidden_channels))
     elif init_features == "zeros":
@@ -1050,10 +1046,34 @@ def run_sgrl_learning(args, device, hypertuning=False):
         else:
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
 
+    if args.dataset == 'ogbl-ddi':
+        from aug_helper import get_features
+        extra_feats = get_features(data.num_nodes, data)
+        data.x = torch.cat([data.x, extra_feats], dim=-1)
+
+    if args.dataset == 'ogbl-vessel':
+        data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
+                           dim=-1)
+
     if init_representation or init_features or args.use_feature:
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
+
+    if args.edge_feature:
+        edim = 1
+        if args.edge_feature == 'cn':
+            ef = CommonNeighbors(data.edge_index, batch_size=1024)
+        elif args.edge_feature == 'ra':
+            ef = ResourceAllocation(data.edge_index, batch_size=1024)
+        elif args.edge_feature == 'aa':
+            ef = AdamicAdar(data.edge_index, batch_size=1024)
+        elif args.edge_feature == 'ad':
+            ef = AnchorDistance(data, 3, 500, 200)
+            edim = 3
+        data.edge_weight = ef(edges=data.edge_index.t())
+        if edim > 1:
+            data.edge_weight = torch.mean(data.edge_weight, dim=-1)
 
     evaluator = None
     if args.dataset.startswith('ogbl'):

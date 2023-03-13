@@ -1,6 +1,7 @@
 import torch
 from scipy.sparse import dok_matrix
 from torch_geometric.data import Data
+from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.transforms import SIGN
 from torch_sparse import SparseTensor, from_scipy, spspmm
 import torch.nn.functional as F
@@ -156,17 +157,14 @@ class OptimizedSignOperations:
                                  directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
             csr_subgraph = tmp[1]
             csr_shape = csr_subgraph.shape[0]
-            u, v, _ = ssp.find(csr_subgraph)
-            u, v = torch.LongTensor(u), torch.LongTensor(v)
-            adj_t = SparseTensor(row=u, col=v,
-                                 sparse_sizes=(csr_shape, csr_shape))
 
-            deg = adj_t.sum(dim=1).to(torch.float)
-            deg_inv_sqrt = deg.pow(-0.5)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+            u, v, value = ssp.find(csr_subgraph)
+            u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
 
+            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
             subgraph_features = tmp[3]
+            adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                 sparse_sizes=(csr_shape, csr_shape))
             subgraph = adj_t
 
             assert subgraph_features is not None
@@ -213,21 +211,17 @@ class OptimizedSignOperations:
                                  directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
             csr_subgraph = tmp[1]
             csr_shape = csr_subgraph.shape[0]
-            u, v, _ = ssp.find(csr_subgraph)
-            u, v = torch.LongTensor(u), torch.LongTensor(v)
-            adj_t = SparseTensor(row=u, col=v,
-                                 sparse_sizes=(csr_shape, csr_shape))
 
-            deg = adj_t.sum(dim=1).to(torch.float)
-            deg_inv_sqrt = deg.pow(-0.5)
-            deg_inv_sqrt[deg_inv_sqrt == float('inf')] = 0
-            adj_t = deg_inv_sqrt.view(-1, 1) * adj_t * deg_inv_sqrt.view(1, -1)
+            u, v, value = ssp.find(csr_subgraph)
+            u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
 
+            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
             subgraph_features = tmp[3]
+            adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
+                                 sparse_sizes=(csr_shape, csr_shape))
             subgraph = adj_t
 
             assert subgraph_features is not None
-
             powers_of_a = [subgraph]
 
             for _ in range(K - 1):
@@ -235,14 +229,28 @@ class OptimizedSignOperations:
 
             # source, target is always 0, 1
             strat = sign_kwargs['k_node_set_strategy']
-            if strat == 'union':
-                one_hop_nodes = neighbors({0}, csr_subgraph).union(neighbors({1}, csr_subgraph))
-                one_hop_nodes.discard(0)
-                one_hop_nodes.discard(1)
-            elif strat == 'intersection':
-                one_hop_nodes = neighbors({0}, csr_subgraph).intersection(neighbors({1}, csr_subgraph))
+            if not directed:
+                if strat == 'union':
+                    one_hop_nodes = neighbors({0}, csr_subgraph).union(neighbors({1}, csr_subgraph))
+                    one_hop_nodes.discard(0)
+                    one_hop_nodes.discard(1)
+                elif strat == 'intersection':
+                    one_hop_nodes = neighbors({0}, csr_subgraph).intersection(neighbors({1}, csr_subgraph))
+                else:
+                    raise NotImplementedError(f"check strat {strat}")
             else:
-                raise NotImplementedError(f"check strat {strat}")
+                csc_subgraph = csr_subgraph.tocsc()
+                neighbors_src = neighbors({0}, csr_subgraph).union(neighbors({0}, csc_subgraph, False))
+                neighbors_dst = neighbors({1}, csr_subgraph).union(neighbors({1}, csc_subgraph, False))
+
+                if strat == 'union':
+                    one_hop_nodes = neighbors_src.union(neighbors_dst)
+                    one_hop_nodes.discard(0)
+                    one_hop_nodes.discard(1)
+                elif strat == 'intersection':
+                    one_hop_nodes = neighbors_src.intersection(neighbors_dst)
+                else:
+                    raise NotImplementedError(f"check strat {strat}")
             strat_hop_nodes = one_hop_nodes
 
             selected_rows = [0, 1] + list(strat_hop_nodes)

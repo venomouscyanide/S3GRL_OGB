@@ -342,6 +342,16 @@ class SIGNNet(torch.nn.Module):
                 raise NotImplementedError(f"Check pool strat: {self.k_pool_strategy}")
             self.link_pred_mlp = MLP([hidden_channels * channels, hidden_channels, 1], dropout=dropout,
                                      batch_norm=True, act_first=True, act='relu')
+        self._uniform_norm()
+
+    def _uniform_norm(self):
+        for lin in self.link_pred_mlp.lins:
+            torch.nn.init.xavier_uniform_(lin.weight.data)
+            lin.bias.data.fill_(0.0)
+
+        for lin in self.operator_diff.lins:
+            torch.nn.init.xavier_uniform_(lin.weight.data)
+            lin.bias.data.fill_(0.0)
 
     def _centre_pool_helper(self, batch, h, op_index):
         # center pooling
@@ -390,5 +400,6 @@ class SIGNNet(torch.nn.Module):
         return x
 
     def reset_parameters(self):
+        self._uniform_norm()
         self.operator_diff.reset_parameters()
         self.link_pred_mlp.reset_parameters()
