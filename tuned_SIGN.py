@@ -239,15 +239,16 @@ class OptimizedSignOperations:
                 else:
                     raise NotImplementedError(f"check strat {strat}")
             else:
-                out_neighbors = neighbors({0}, A).union({1}, A)
-                in_neighbors = neighbors({0}, A_csc, False).union({1}, A_csc, False)
+                csc_subgraph = csr_subgraph.tocsc()
+                neighbors_src = neighbors({0}, csr_subgraph).union(neighbors({0}, csc_subgraph, False))
+                neighbors_dst = neighbors({1}, csr_subgraph).union(neighbors({1}, csc_subgraph, False))
 
                 if strat == 'union':
-                    one_hop_nodes = out_neighbors.union(in_neighbors)
+                    one_hop_nodes = neighbors_src.union(neighbors_dst)
                     one_hop_nodes.discard(0)
                     one_hop_nodes.discard(1)
                 elif strat == 'intersection':
-                    one_hop_nodes = out_neighbors.intersection(in_neighbors)
+                    one_hop_nodes = neighbors_src.intersection(neighbors_dst)
                 else:
                     raise NotImplementedError(f"check strat {strat}")
             strat_hop_nodes = one_hop_nodes
