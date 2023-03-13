@@ -1,6 +1,7 @@
 from pathlib import Path
 from timeit import default_timer
 
+import numpy as np
 import torch
 import shutil
 
@@ -1048,13 +1049,13 @@ def run_sgrl_learning(args, device, hypertuning=False):
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
 
     if args.dataset == 'ogbl-ddi':
+        import networkx as nx
         # from aug_helper import get_features
         # extra_feats = get_features(data.num_nodes, data)
         # data.x = torch.cat([data.x, extra_feats], dim=-1)
         nx_data = torch_geometric.utils.to_networkx(data)
         nx_data = nx_data.to_undirected()
 
-        import numpy as np
         # Distance Matrix
         def distance_encoding(x, y):
             distance = len(nx.shortest_path(nx_data, source=x, target=y))
@@ -1067,7 +1068,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
         print("Generating distance features")
         for x in tqdm(range(0, 4267), ncols=70):
-            print(x)
             distance_feature.append([])
             for y in badian:
                 dis = distance_encoding(x, y)
