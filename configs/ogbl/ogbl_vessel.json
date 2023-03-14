@@ -19,7 +19,7 @@
       },
       "hyperparams_per_run": {
         "fast_split": false,
-        "delete_dataset": true,
+        "delete_dataset": false,
         "model": "SIGN",
         "sortpool_k": -1,
         "num_layers": -1,
