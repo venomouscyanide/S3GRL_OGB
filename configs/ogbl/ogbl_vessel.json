@@ -86,7 +86,8 @@
         "init_representation": "",
         "use_mlp": false,
         "split_by_year": false,
-        "normalize_feats": true
+        "normalize_feats": true,
+        "edge_feature": ""
       }
     }
   }
