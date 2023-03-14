@@ -815,7 +815,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     # SGRL Dataset prep + Training Flow
     if args.dataset.startswith('ogbl'):
-        dataset = PygLinkPropPredDataset(name=args.dataset, transform=NormalizeFeatures())
+        dataset = PygLinkPropPredDataset(name=args.dataset)
         split_edge = dataset.get_edge_split()
         if args.dataset == 'ogbl-ppa':
             dataset.data.x = dataset.data.x.type(torch.FloatTensor)
@@ -1055,8 +1055,10 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if args.dataset == 'ogbl-vessel':
         data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
                            dim=-1)
+        print(f"Concat pretrained n2v features to ogbl-vessel. Total ogbl-vessel feats is {data.x.shape}")
 
-    if init_representation or init_features or args.use_feature:
+    if args.normalize_feats:
+        print("Normalizing dataset x")
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
@@ -1685,6 +1687,7 @@ if __name__ == '__main__':
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
     parser.add_argument('--split_by_year', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
+    parser.add_argument('--normalize_feats', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
