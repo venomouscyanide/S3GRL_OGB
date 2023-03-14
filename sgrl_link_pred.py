@@ -1,6 +1,7 @@
 from pathlib import Path
 from timeit import default_timer
 
+import numpy as np
 import torch
 import shutil
 
@@ -815,7 +816,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     # SGRL Dataset prep + Training Flow
     if args.dataset.startswith('ogbl'):
-        dataset = PygLinkPropPredDataset(name=args.dataset, transform=NormalizeFeatures())
+        dataset = PygLinkPropPredDataset(name=args.dataset)
         split_edge = dataset.get_edge_split()
         if args.dataset == 'ogbl-ppa':
             dataset.data.x = dataset.data.x.type(torch.FloatTensor)
@@ -833,7 +834,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
     elif args.dataset.startswith('attributed'):
         dataset_name = args.dataset.split('-')[-1]
         path = osp.join('dataset', dataset_name)
-        dataset = AttributedGraphDataset(path, dataset_name, transform=NormalizeFeatures())
+        dataset = AttributedGraphDataset(path, dataset_name)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -841,7 +842,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     elif args.dataset in ['Cora', 'Pubmed', 'CiteSeer']:
         path = osp.join('dataset', args.dataset)
-        dataset = Planetoid(path, args.dataset, transform=NormalizeFeatures())
+        dataset = Planetoid(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -888,7 +889,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         print("Finish reading from file")
     elif args.dataset in ['chameleon', 'crocodile', 'squirrel']:
         path = osp.join('dataset', args.dataset)
-        dataset = WikipediaNetwork(path, args.dataset, transform=NormalizeFeatures())
+        dataset = WikipediaNetwork(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -898,7 +899,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         G.add_edges_from(data.edge_index.T.detach().numpy())
     elif args.dataset in ['Cornell', 'Texas', 'Wisconsin']:
         path = osp.join('dataset', args.dataset)
-        dataset = WebKB(path, args.dataset, transform=NormalizeFeatures())
+        dataset = WebKB(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -908,7 +909,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         G.add_edges_from(data.edge_index.T.detach().numpy())
     elif args.dataset in ['CS', 'Physics']:
         path = osp.join('dataset', args.dataset)
-        dataset = Coauthor(path, args.dataset, transform=NormalizeFeatures())
+        dataset = Coauthor(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -980,6 +981,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             data.edge_index = new_edge_index
 
     if args.use_valedges_as_input:
+        print("Adding validation edges to training edges")
         val_edge_index = split_edge['valid']['edge'].t()
         if not directed:
             val_edge_index = to_undirected(val_edge_index)
@@ -1018,6 +1020,31 @@ def run_sgrl_learning(args, device, hypertuning=False):
             extra_identifier = f"{args.k_heuristic}{args.sign_type}{args.hidden_channels}{args.num_hops}"
         data.x = node_2_vec_pretrain(args.dataset, data.edge_index, data.num_nodes, args.n2v_dim, args.seed, device,
                                      args.epochs, hypertuning, extra_identifier)
+    elif init_features == "distance_matrix":
+        # Taken from the authors of GDNN: https://github.com/zhf3564859793/GDNN
+        import networkx as nx
+        import torch_geometric
+        nx_data = torch_geometric.utils.to_networkx(data)
+        nx_data = nx_data.to_undirected()
+
+        # Distance Matrix
+        def distance_encoding(x, y):
+            distance = len(nx.shortest_path(nx_data, source=x, target=y))
+            return distance
+
+        anchors = 512  # num anchors is currently hardcoded to 512
+        anchors_sampled = np.random.choice(data.num_nodes, anchors, replace=False)
+
+        distance_feature = []
+
+        print("Generating distance features to anchor nodes")
+        for x in tqdm(range(0, data.num_nodes), ncols=70):
+            distance_feature.append([])
+            for y in anchors_sampled:
+                dis = distance_encoding(x, y)
+                distance_feature[x].append(dis)
+
+        data.x = torch.tensor(distance_feature, dtype=torch.float)
 
     init_representation = args.init_representation
     if init_representation:
@@ -1049,18 +1076,25 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if args.dataset == 'ogbl-ddi':
         from aug_helper import get_features
         extra_feats = get_features(data.num_nodes, data)
-        data.x = torch.cat([data.x, extra_feats], dim=-1)
+        if init_features:
+            data.x = torch.cat([data.x, extra_feats], dim=-1)
+        else:
+            data.x = extra_feats
+        print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
 
     if args.dataset == 'ogbl-vessel':
         data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
                            dim=-1)
+        print(f"Concat pretrained n2v features to ogbl-vessel. Total ogbl-vessel feats is {data.x.shape}")
 
-    if init_representation or init_features or args.use_feature:
+    if args.normalize_feats:
+        print("Normalizing dataset x")
         norm = NormalizeFeatures()
         transformed_data = norm(data)
         data.x = transformed_data.x
 
     if args.edge_feature:
+        # Use gtrick library to encode edge features
         edim = 1
         if args.edge_feature == 'cn':
             ef = CommonNeighbors(data.edge_index, batch_size=1024)
@@ -1234,28 +1268,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 sign_type=args.sign_type,
                 args=args,
             )
-    viz = False
-    if viz:  # visualize some graphs
-        import networkx as nx
-        from torch_geometric.utils import to_networkx
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
-        for g in loader:
-            f = plt.figure(figsize=(20, 20))
-            limits = plt.axis('off')
-            g = g.to(device)
-            node_size = 100
-            with_labels = True
-            G = to_networkx(g, node_attrs=['z'])
-            labels = {i: G.nodes[i]['z'] for i in range(len(G))}
-            nx.draw(G, node_size=node_size, arrows=True, with_labels=with_labels,
-                    labels=labels)
-            f.savefig('tmp_vis.png')
-            pdb.set_trace()
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         print("Setting up Val data")
@@ -1358,7 +1370,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = GIN(args.hidden_channels, args.num_layers, max_z, train_dataset,
                         args.use_feature, node_embedding=emb).to(device)
         elif args.model == "SIGN":
-            # num_layers in SIGN is simply sign_k
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
@@ -1684,6 +1695,7 @@ if __name__ == '__main__':
     parser.add_argument('--cache_dynamic', action='store_true', default=False, required=False)
     parser.add_argument('--split_by_year', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
+    parser.add_argument('--normalize_feats', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
