@@ -1049,7 +1049,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
     if args.dataset == 'ogbl-ddi':
         from aug_helper import get_features
         extra_feats = get_features(data.num_nodes, data)
-        data.x = torch.cat([data.x, extra_feats], dim=-1)
+        data.x = extra_feats
+        print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
 
     if args.dataset == 'ogbl-vessel':
         data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
