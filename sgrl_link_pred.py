@@ -833,7 +833,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
     elif args.dataset.startswith('attributed'):
         dataset_name = args.dataset.split('-')[-1]
         path = osp.join('dataset', dataset_name)
-        dataset = AttributedGraphDataset(path, dataset_name, transform=NormalizeFeatures())
+        dataset = AttributedGraphDataset(path, dataset_name)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -841,7 +841,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     elif args.dataset in ['Cora', 'Pubmed', 'CiteSeer']:
         path = osp.join('dataset', args.dataset)
-        dataset = Planetoid(path, args.dataset, transform=NormalizeFeatures())
+        dataset = Planetoid(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -888,7 +888,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         print("Finish reading from file")
     elif args.dataset in ['chameleon', 'crocodile', 'squirrel']:
         path = osp.join('dataset', args.dataset)
-        dataset = WikipediaNetwork(path, args.dataset, transform=NormalizeFeatures())
+        dataset = WikipediaNetwork(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -898,7 +898,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         G.add_edges_from(data.edge_index.T.detach().numpy())
     elif args.dataset in ['Cornell', 'Texas', 'Wisconsin']:
         path = osp.join('dataset', args.dataset)
-        dataset = WebKB(path, args.dataset, transform=NormalizeFeatures())
+        dataset = WebKB(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
@@ -908,7 +908,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         G.add_edges_from(data.edge_index.T.detach().numpy())
     elif args.dataset in ['CS', 'Physics']:
         path = osp.join('dataset', args.dataset)
-        dataset = Coauthor(path, args.dataset, transform=NormalizeFeatures())
+        dataset = Coauthor(path, args.dataset)
         split_edge = do_edge_split(dataset, args.fast_split, val_ratio=args.split_val_ratio,
                                    test_ratio=args.split_test_ratio, neg_ratio=args.neg_ratio)
         data = dataset[0]
