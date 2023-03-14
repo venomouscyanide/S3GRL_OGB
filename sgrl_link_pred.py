@@ -1,6 +1,7 @@
 from pathlib import Path
 from timeit import default_timer
 
+import numpy as np
 import torch
 import shutil
 
@@ -980,6 +981,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             data.edge_index = new_edge_index
 
     if args.use_valedges_as_input:
+        print("Adding validation edges to training edges")
         val_edge_index = split_edge['valid']['edge'].t()
         if not directed:
             val_edge_index = to_undirected(val_edge_index)
@@ -1018,6 +1020,31 @@ def run_sgrl_learning(args, device, hypertuning=False):
             extra_identifier = f"{args.k_heuristic}{args.sign_type}{args.hidden_channels}{args.num_hops}"
         data.x = node_2_vec_pretrain(args.dataset, data.edge_index, data.num_nodes, args.n2v_dim, args.seed, device,
                                      args.epochs, hypertuning, extra_identifier)
+    elif init_features == "distance_matrix":
+        # Taken from the authors of GDNN: https://github.com/zhf3564859793/GDNN
+        import networkx as nx
+        import torch_geometric
+        nx_data = torch_geometric.utils.to_networkx(data)
+        nx_data = nx_data.to_undirected()
+
+        # Distance Matrix
+        def distance_encoding(x, y):
+            distance = len(nx.shortest_path(nx_data, source=x, target=y))
+            return distance
+
+        anchors = 512  # num anchors is currently hardcoded to 512
+        anchors_sampled = np.random.choice(data.num_nodes, anchors, replace=False)
+
+        distance_feature = []
+
+        print("Generating distance features to anchor nodes")
+        for x in tqdm(range(0, data.num_nodes), ncols=70):
+            distance_feature.append([])
+            for y in anchors_sampled:
+                dis = distance_encoding(x, y)
+                distance_feature[x].append(dis)
+
+        data.x = torch.tensor(distance_feature, dtype=torch.float)
 
     init_representation = args.init_representation
     if init_representation:
@@ -1067,6 +1094,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         data.x = transformed_data.x
 
     if args.edge_feature:
+        # Use gtrick library to encode edge features
         edim = 1
         if args.edge_feature == 'cn':
             ef = CommonNeighbors(data.edge_index, batch_size=1024)
