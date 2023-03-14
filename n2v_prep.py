@@ -43,7 +43,7 @@ def node_2_vec_pretrain(dataset, edge_index, num_nodes, emb_dim, seed, device, e
                 print(f'Epoch: {epoch + 1:02d}, Step: {i + 1:03d}/{len(loader)}, '
                       f'Loss: {loss:.4f}')
 
-            if (i + 1) % 100 == 0 and cache:  # Save model every 100 steps.
+            if (i + 1) % 1000 == 0 and cache:  # Save model every 100 steps.
                 output = (n2v.forward()).cpu().clone().detach()
                 torch.save(output, unique_identifier)
 
