@@ -1268,28 +1268,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 sign_type=args.sign_type,
                 args=args,
             )
-    viz = False
-    if viz:  # visualize some graphs
-        import networkx as nx
-        from torch_geometric.utils import to_networkx
-        import matplotlib
-
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-
-        loader = DataLoader(train_dataset, batch_size=1, shuffle=False)
-        for g in loader:
-            f = plt.figure(figsize=(20, 20))
-            limits = plt.axis('off')
-            g = g.to(device)
-            node_size = 100
-            with_labels = True
-            G = to_networkx(g, node_attrs=['z'])
-            labels = {i: G.nodes[i]['z'] for i in range(len(G))}
-            nx.draw(G, node_size=node_size, arrows=True, with_labels=with_labels,
-                    labels=labels)
-            f.savefig('tmp_vis.png')
-            pdb.set_trace()
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         print("Setting up Val data")
@@ -1392,7 +1370,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = GIN(args.hidden_channels, args.num_layers, max_z, train_dataset,
                         args.use_feature, node_embedding=emb).to(device)
         elif args.model == "SIGN":
-            # num_layers in SIGN is simply sign_k
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
