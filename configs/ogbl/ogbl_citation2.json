@@ -1,6 +1,6 @@
 {
   "datasets": {
-    "ogbl_citation2_pos_plus": {
+    "ogbl_citation2_pos_plus_11": {
       "ds_params": {
         "runs": 10,
         "seeds": [
@@ -83,7 +83,11 @@
         "k_heuristic": 1,
         "k_node_set_strategy": "intersection",
         "k_pool_strategy": "mean",
-        "init_representation": ""
+        "init_representation": "",
+        "use_mlp": false,
+        "split_by_year": false,
+        "edge_feature": "",
+        "normalize_feats": false
       }
     }
   }

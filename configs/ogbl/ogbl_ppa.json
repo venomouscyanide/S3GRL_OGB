@@ -1,6 +1,6 @@
 {
   "datasets": {
-    "ogbl_ppa_pos_plus": {
+    "ogbl_ppa_pos_plus_11": {
       "ds_params": {
         "runs": 10,
         "seeds": [
@@ -32,9 +32,9 @@
         "use_feature": true,
         "use_edge_weight": false,
         "lr": 0.005,
-        "epochs": 10,
+        "epochs": 25,
         "runs": 1,
-        "train_percent": 10,
+        "train_percent": 100,
         "val_percent": 100,
         "test_percent": 100,
         "dynamic_train": true,
@@ -85,7 +85,9 @@
         "k_pool_strategy": "mean",
         "init_representation": "",
         "split_by_year": false,
-        "edge_feature": "ra"
+        "use_mlp": false,
+        "edge_feature": "ra",
+        "normalize_feats": false
       }
     }
   }

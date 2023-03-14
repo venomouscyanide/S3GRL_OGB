@@ -1074,6 +1074,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
 
     if args.dataset == 'ogbl-ddi':
+        # https://github.com/chuanqichen/cs224w
         from aug_helper import get_features
         extra_feats = get_features(data.num_nodes, data)
         if init_features:
@@ -1082,7 +1083,18 @@ def run_sgrl_learning(args, device, hypertuning=False):
             data.x = extra_feats
         print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
 
+    if args.dataset == 'ogbl-ppa':
+        # https://github.com/lustoo/OGB_link_prediction
+        from aug_helper import resource_allocation
+        adj_matrix = ssp.csr_matrix(
+            (torch.ones(data.edge_index.size(1), dtype=int), (data.edge_index[0], data.edge_index[1])),
+            shape=(data.num_nodes, data.num_nodes)
+        )
+        link_list = data.edge_index
+        data.edge_weight = resource_allocation(adj_matrix, link_list)
+
     if args.dataset == 'ogbl-vessel':
+        # https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py
         data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
                            dim=-1)
         print(f"Concat pretrained n2v features to ogbl-vessel. Total ogbl-vessel feats is {data.x.shape}")

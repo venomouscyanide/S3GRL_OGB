@@ -1,6 +1,6 @@
 {
   "datasets": {
-    "ogbl_ddi_pos_plus": {
+    "ogbl_ddi_pos_plus_11": {
       "ds_params": {
         "runs": 10,
         "seeds": [
@@ -85,7 +85,9 @@
         "k_pool_strategy": "mean",
         "init_representation": "",
         "split_by_year": false,
-        "edge_feature": "cn"
+        "edge_feature": "cn",
+        "use_mlp": false,
+        "normalize_feats": false
       }
     }
   }

@@ -32,7 +32,7 @@
         "use_feature": true,
         "use_edge_weight": false,
         "lr": 0.005,
-        "epochs": 25,
+        "epochs": 10,
         "runs": 1,
         "train_percent": 100,
         "val_percent": 100,
@@ -85,7 +85,9 @@
         "k_pool_strategy": "mean",
         "init_representation": "",
         "use_mlp": false,
-        "split_by_year": false
+        "split_by_year": false,
+        "normalize_feats": true,
+        "edge_feature": ""
       }
     }
   }
