@@ -39,7 +39,7 @@ def get_features(n_nodes, data):
     return features
 
 
-def resource_allocation(adj_matrix, link_list, batch_size=1):
+def resource_allocation(adj_matrix, link_list, batch_size=32786):
     # adapted from: https://github.com/lustoo/OGB_link_prediction/blob/main/PPA/generate_feature.py
     A = adj_matrix
     w = 1 / A.sum(axis=0)
