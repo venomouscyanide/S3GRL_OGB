@@ -1,6 +1,6 @@
 {
   "datasets": {
-    "ogbl_ddi_pos_plus": {
+    "ogbl_ddi_pos_plus_11": {
       "ds_params": {
         "runs": 10,
         "seeds": [

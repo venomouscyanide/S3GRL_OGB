@@ -1,6 +1,6 @@
 {
   "datasets": {
-    "ogbl_citation2_pos_plus": {
+    "ogbl_citation2_pos_plus_11": {
       "ds_params": {
         "runs": 10,
         "seeds": [
