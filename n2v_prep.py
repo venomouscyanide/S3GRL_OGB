@@ -29,16 +29,23 @@ def node_2_vec_pretrain(dataset, edge_index, num_nodes, emb_dim, seed, device, e
     n2v.train()
 
     print(f'Prepping n2v embeddings with hidden_dim: {emb_dim}')
-    for i in tqdm(range(epochs), ncols=70):
+    for epoch in tqdm(range(epochs), ncols=70):
         total_loss = 0
-        for pos_rw, neg_rw in loader:
+        for i, (pos_rw, neg_rw) in enumerate(loader):
+
             optimizer.zero_grad()
             loss = n2v.loss(pos_rw.to(device), neg_rw.to(device))
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        if i % 20 == 0:
-            print(f'Step: {i} /200, Loss : {total_loss:.4f}')
+
+            if (i + 1) % 100 == 0:
+                print(f'Epoch: {epoch + 1:02d}, Step: {i + 1:03d}/{len(loader)}, '
+                      f'Loss: {loss:.4f}')
+
+            if (i + 1) % 100 == 0 and cache:  # Save model every 100 steps.
+                output = (n2v.forward()).cpu().clone().detach()
+                torch.save(output, unique_identifier)
 
     output = (n2v.forward()).cpu().clone().detach()
 
