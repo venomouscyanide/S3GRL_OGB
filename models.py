@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import torch
+from gtrick import random_feature
 from torch.nn import (ModuleList, Linear, Conv1d, MaxPool1d, Embedding, ReLU,
                       Sequential, BatchNorm1d as BN, BatchNorm1d)
 import torch.nn.functional as F
@@ -319,11 +320,11 @@ class SIGNNet(torch.nn.Module):
 
         if not use_mlp:
             # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
-            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
+            mlp_layers = [initial_channels * (num_layers + 1) + num_layers + 1, hidden_channels]
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=False)
         else:
-            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
+            mlp_layers = [initial_channels * (num_layers + 1) + num_layers + 1, hidden_channels, hidden_channels]
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=True)
         if not self.k_heuristic:
@@ -390,8 +391,12 @@ class SIGNNet(torch.nn.Module):
         return h
 
     def forward(self, xs, batch):
+        for index in range(len(xs)):
+            xs[index] = random_feature(xs[index])
+
         xs_cat = torch.cat(xs, dim=-1)
         x = xs_cat
+
         x = self.operator_diff(x)
 
         x = self._centre_pool_helper(batch, x, -1)
