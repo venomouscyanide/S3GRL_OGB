@@ -301,7 +301,7 @@ class GIN(torch.nn.Module):
 
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
-                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False):
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, bs=None):
         super().__init__()
 
         self.use_feature = use_feature
@@ -320,9 +320,11 @@ class SIGNNet(torch.nn.Module):
 
         if not use_mlp:
             # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
-            mlp_layers = [initial_channels * (num_layers + 1) + num_layers + 1, hidden_channels]
+            random_dim = 32
+            mlp_layers = [initial_channels * (num_layers + 1) + random_dim, hidden_channels]
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=False)
+            self.random_emd = Embedding(bs * 2, random_dim)
         else:
             mlp_layers = [initial_channels * (num_layers + 1) + num_layers + 1, hidden_channels, hidden_channels]
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
@@ -391,11 +393,14 @@ class SIGNNet(torch.nn.Module):
         return h
 
     def forward(self, xs, batch):
-        for index in range(len(xs)):
-            xs[index] = random_feature(xs[index])
+        # for index in range(len(xs)):
+        #     xs[index] = random_feature(xs[index])
 
         xs_cat = torch.cat(xs, dim=-1)
-        x = xs_cat
+        if xs_cat.shape[0] < self.random_emd.weight.shape[0]:
+            xs_cat = torch.cat([torch.zeros(
+                size=(self.random_emd.weight.shape[0] - xs_cat.shape[0], xs_cat.shape[1])), xs_cat])
+        x = torch.cat([xs_cat, self.random_emd.weight], dim=-1)
 
         x = self.operator_diff(x)
 

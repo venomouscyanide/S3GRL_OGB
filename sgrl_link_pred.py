@@ -1388,7 +1388,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, bs=args.batch_size).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:
