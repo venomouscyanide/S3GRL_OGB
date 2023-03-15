@@ -400,7 +400,7 @@ class SIGNNet(torch.nn.Module):
         if xs_cat.shape[0] < self.random_emd.weight.shape[0]:
             xs_cat = torch.cat([torch.zeros(
                 size=(self.random_emd.weight.shape[0] - xs_cat.shape[0], xs_cat.shape[1]),
-                device=torch.get_device(xs_cat)),
+                device="cuda:0"),
                 xs_cat])
         x = torch.cat([xs_cat, self.random_emd.weight], dim=-1)
 
