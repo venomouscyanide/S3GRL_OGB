@@ -86,7 +86,7 @@
         "init_representation": "",
         "split_by_year": false,
         "use_mlp": false,
-        "edge_feature": "ra",
+        "edge_feature": "",
         "normalize_feats": false
       }
     }
