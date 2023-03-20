@@ -329,7 +329,7 @@ class OptimizedSignOperations:
                     raise NotImplementedError(f"check strat {strat}")
 
             nodes_chosen = [0, 1] + list(one_hop_nodes)
-            data = Data(x=torch.empty(size=[len(nodes_chosen), 1]), y=y)
+            data = Data(x=torch.ones(size=[len(nodes_chosen), 1]), y=y)
             data.nodes_chosen = nodes_chosen
             pos_data_list.append(data)
             data.edge_wise_data = edge_index.tolist()

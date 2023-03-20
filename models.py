@@ -303,7 +303,7 @@ class GIN(torch.nn.Module):
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, num_feats, use_feature=False, node_embedding=None, dropout=0.5,
                  pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, num_nodes=0, learn_x=False,
-                 device='cpu'):
+                 device='cpu', x_init=None):
         super().__init__()
 
         self.device = device
@@ -320,6 +320,8 @@ class SIGNNet(torch.nn.Module):
         initial_channels += num_feats - hidden_channels
         if learn_x:
             self.x_embedding = Embedding(num_nodes, initial_channels)
+            if x_init is not None:
+                self.x_embedding = torch.nn.Embedding.from_pretrained(x_init, freeze=False).to(device)
         if self.node_embedding is not None:
             initial_channels += node_embedding.embedding_dim
 
