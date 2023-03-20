@@ -4,7 +4,6 @@ from torch_geometric.data import Data
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.transforms import SIGN
 from torch_sparse import SparseTensor, from_scipy, spspmm
-import torch.nn.functional as F
 from tqdm import tqdm
 
 import scipy.sparse as ssp
@@ -329,6 +328,36 @@ class OptimizedSignOperations:
                     raise NotImplementedError(f"check strat {strat}")
 
             nodes_chosen = [0, 1] + list(one_hop_nodes)
+            data = Data(x=torch.ones(size=[len(nodes_chosen), 1]), y=y)
+            data.nodes_chosen = nodes_chosen
+            pos_data_list.append(data)
+            data.edge_wise_data = edge_index.tolist()
+            data.all_nodes_chosen = tmp[0]
+
+        return pos_data_list
+
+    @staticmethod
+    def get_PoS_learn_x_prepped_ds(link_index, num_hops, A, ratio_per_hop, max_nodes_per_hop, directed, A_csc, x,
+                                   y, sign_kwargs, rw_kwargs, verbose=False):
+        # optimized PoS Plus flow
+        if verbose:
+            print("PoS Optimized LearnX Flow.")
+        from utils import k_hop_subgraph
+        pos_data_list = []
+        if verbose:
+            print("Start with PoS LearnX data prep")
+
+        for src, dst in tqdm(link_index.t().tolist(), disable=not verbose, ncols=70):
+            tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
+                                 max_nodes_per_hop, node_features=x, y=y,
+                                 directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
+            csr_subgraph = tmp[1]
+            u, v, value = ssp.find(csr_subgraph)
+            u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
+
+            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
+
+            nodes_chosen = [0, 1]
             data = Data(x=torch.ones(size=[len(nodes_chosen), 1]), y=y)
             data.nodes_chosen = nodes_chosen
             pos_data_list.append(data)

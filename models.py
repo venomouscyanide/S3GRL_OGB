@@ -6,7 +6,7 @@ from torch.nn import (ModuleList, Linear, Conv1d, MaxPool1d, Embedding, ReLU,
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, global_sort_pool, global_add_pool, global_mean_pool, MLP, \
     global_max_pool
-from torch_geometric.utils import dropout_adj, to_dense_adj, to_scipy_sparse_matrix
+from torch_geometric.utils import dropout_adj
 from torch_sparse import SparseTensor
 from tqdm import tqdm
 
@@ -321,9 +321,9 @@ class SIGNNet(torch.nn.Module):
         if learn_x:
             self.x_embedding = Embedding(num_nodes, initial_channels)
             if x_init is not None:
-                self.x_embedding = torch.nn.Embedding.from_pretrained(x_init, freeze=False).to(device)
-        if self.node_embedding is not None:
-            initial_channels += node_embedding.embedding_dim
+                print(f"Setting up x_embedding from x_init with dim: {x_init.size()}")
+                self.x_embedding = Embedding.from_pretrained(x_init, freeze=False).to(device)
+                initial_channels = x_init.size()[-1]
 
         if not use_mlp:
             # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
@@ -399,6 +399,7 @@ class SIGNNet(torch.nn.Module):
 
     def forward(self, xs, batch, nodes_chosen, edge_wise_data, all_nodes_chosen):
         if xs is None:
+            # TODO; add support for edge weight and sign_k > 1
             all_x = []
             all_ax = []
             for edge_index, nodes_in_strat, nodes_overall in tqdm(
