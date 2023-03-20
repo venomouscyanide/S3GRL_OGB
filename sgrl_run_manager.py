@@ -22,7 +22,7 @@ class SGRLArgumentParser:
                  seed, dataset_split_num, train_n2v, train_mf, sign_k, sign_type, pool_operatorwise, optimize_sign,
                  init_features, n2v_dim=256, k_heuristic=0, k_node_set_strategy="", k_pool_strategy="",
                  init_representation="", cache_dynamic=False, use_mlp=False, split_by_year=False, edge_feature="",
-                 normalize_feats=False):
+                 normalize_feats=False, learn_x=False):
         # Data Settings
         self.dataset = dataset
         self.fast_split = fast_split
@@ -107,6 +107,7 @@ class SGRLArgumentParser:
         self.split_by_year = split_by_year
         self.edge_feature = edge_feature
         self.normalize_feats = normalize_feats
+        self.learn_x = learn_x
 
     def __str__(self):
         return pprint.pformat(self.__dict__)

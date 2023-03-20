@@ -491,11 +491,20 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
                                                                        sign_kwargs, rw_kwargs, verbose=verbose)
             return sup_data_list
-        elif not powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic']:
+        elif not powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic'] and not sign_kwargs[
+            'learn_x']:
             # optimized PoS Plus flow
             sup_data_list = OptimizedSignOperations.get_PoS_Plus_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                             max_nodes_per_hop, directed, A_csc, x, y,
                                                                             sign_kwargs, rw_kwargs, verbose=verbose)
+            return sup_data_list
+        elif not powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic'] and sign_kwargs['learn_x']:
+            sup_data_list = OptimizedSignOperations.get_PoS_Plus_learn_x_prepped_ds(link_index, num_hops, A,
+                                                                                    ratio_per_hop,
+                                                                                    max_nodes_per_hop, directed, A_csc,
+                                                                                    x, y,
+                                                                                    sign_kwargs, rw_kwargs,
+                                                                                    verbose=verbose)
             return sup_data_list
         elif not sign_kwargs['optimize_sign']:
             # SIGN + SEAL flow; includes both PoS and SoP flows

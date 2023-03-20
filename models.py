@@ -6,7 +6,8 @@ from torch.nn import (ModuleList, Linear, Conv1d, MaxPool1d, Embedding, ReLU,
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, global_sort_pool, global_add_pool, global_mean_pool, MLP, \
     global_max_pool
-from torch_geometric.utils import dropout_adj
+from torch_geometric.utils import dropout_adj, to_dense_adj, to_scipy_sparse_matrix
+from torch_sparse import SparseTensor
 
 
 class GCN(torch.nn.Module):
@@ -299,8 +300,8 @@ class GIN(torch.nn.Module):
 
 
 class SIGNNet(torch.nn.Module):
-    def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
-                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, num_nodes=0):
+    def __init__(self, hidden_channels, num_layers, num_feats, use_feature=False, node_embedding=None, dropout=0.5,
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, num_nodes=0, learn_x=False):
         super().__init__()
 
         self.use_feature = use_feature
@@ -313,8 +314,9 @@ class SIGNNet(torch.nn.Module):
         self.hidden_channels = hidden_channels
         initial_channels = hidden_channels
 
-        initial_channels += train_dataset.num_features - hidden_channels
-        self.x_embedding = Embedding(num_nodes, initial_channels)
+        initial_channels += num_feats - hidden_channels
+        if learn_x:
+            self.x_embedding = Embedding(num_nodes, initial_channels)
         if self.node_embedding is not None:
             initial_channels += node_embedding.embedding_dim
 
@@ -390,10 +392,31 @@ class SIGNNet(torch.nn.Module):
 
         return h
 
-    def forward(self, xs, batch, nodes_chosen):
-        xs[0] = self.x_embedding(nodes_chosen)
-        xs_cat = torch.cat(xs, dim=-1)
-        x = xs_cat
+    def forward(self, xs, batch, nodes_chosen, edge_wise_data, all_nodes_chosen):
+        if xs is None:
+            all_x = []
+            all_ax = []
+            for edge_index, nodes_in_strat, nodes_overall in zip(edge_wise_data, nodes_chosen, all_nodes_chosen):
+                edge_index = torch.tensor(edge_index)
+                size_of_subg = len(nodes_overall)
+                if not edge_index.nelement():
+                    subgraph = torch.zeros(size=(size_of_subg, size_of_subg))
+                else:
+                    subgraph = SparseTensor(row=edge_index[0], col=edge_index[-1],
+                                            sparse_sizes=(size_of_subg, size_of_subg))
+
+                nodes_overall = torch.tensor(nodes_overall, dtype=torch.int)
+                all_subg_x = self.x_embedding(nodes_overall)
+
+                sliced_x = all_subg_x[nodes_in_strat]
+                all_x.append(sliced_x)
+
+                ax = (subgraph @ all_subg_x)[nodes_in_strat]
+                all_ax.append(ax)
+
+            x = torch.cat([torch.vstack(all_x), torch.vstack(all_ax)], dim=-1)
+        else:
+            x = torch.cat(xs, dim=-1)
         x = self.operator_diff(x)
 
         x = self._centre_pool_helper(batch, x, -1)

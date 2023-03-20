@@ -229,7 +229,6 @@ class OptimizedSignOperations:
 
             # source, target is always 0, 1
             strat = sign_kwargs['k_node_set_strategy']
-            node_map = {k: v for k, v in zip(list(range(csr_subgraph.shape[0])), tmp[0])}
             if not directed:
                 if strat == 'union':
                     one_hop_nodes = neighbors({0}, csr_subgraph).union(neighbors({1}, csr_subgraph))
@@ -276,7 +275,64 @@ class OptimizedSignOperations:
             for index, power_of_a in enumerate(powers_of_a, start=1):
                 data[f'x{index}'] = power_of_a @ subg_x
 
-            data.nodes_chosen = torch.tensor([src, dst] + [node_map[node] for node in one_hop_nodes], dtype=torch.int)
+            data.nodes_chosen = [0, 1] + list(one_hop_nodes)
             pos_data_list.append(data)
+            data.edge_wise_data = edge_index.tolist()
+            data.all_nodes_chosen = tmp[0]
+
+        return pos_data_list
+
+    @staticmethod
+    def get_PoS_Plus_learn_x_prepped_ds(link_index, num_hops, A, ratio_per_hop, max_nodes_per_hop, directed, A_csc, x,
+                                        y, sign_kwargs, rw_kwargs, verbose=False):
+        # optimized PoS Plus flow
+        if verbose:
+            print("PoS Plus Optimized LearnX Flow.")
+        from utils import k_hop_subgraph, neighbors
+        pos_data_list = []
+        if verbose:
+            print("Start with PoS Plus LearnX data prep")
+
+        for src, dst in tqdm(link_index.t().tolist(), disable=not verbose, ncols=70):
+            tmp = k_hop_subgraph(src, dst, num_hops, A, ratio_per_hop,
+                                 max_nodes_per_hop, node_features=x, y=y,
+                                 directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
+            csr_subgraph = tmp[1]
+            u, v, value = ssp.find(csr_subgraph)
+            u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
+
+            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
+
+            # source, target is always 0, 1
+            strat = sign_kwargs['k_node_set_strategy']
+            if not directed:
+                if strat == 'union':
+                    one_hop_nodes = neighbors({0}, csr_subgraph).union(neighbors({1}, csr_subgraph))
+                    one_hop_nodes.discard(0)
+                    one_hop_nodes.discard(1)
+                elif strat == 'intersection':
+                    one_hop_nodes = neighbors({0}, csr_subgraph).intersection(neighbors({1}, csr_subgraph))
+                else:
+                    raise NotImplementedError(f"check strat {strat}")
+            else:
+                csc_subgraph = csr_subgraph.tocsc()
+                neighbors_src = neighbors({0}, csr_subgraph).union(neighbors({0}, csc_subgraph, False))
+                neighbors_dst = neighbors({1}, csr_subgraph).union(neighbors({1}, csc_subgraph, False))
+
+                if strat == 'union':
+                    one_hop_nodes = neighbors_src.union(neighbors_dst)
+                    one_hop_nodes.discard(0)
+                    one_hop_nodes.discard(1)
+                elif strat == 'intersection':
+                    one_hop_nodes = neighbors_src.intersection(neighbors_dst)
+                else:
+                    raise NotImplementedError(f"check strat {strat}")
+
+            nodes_chosen = [0, 1] + list(one_hop_nodes)
+            data = Data(x=torch.empty(size=[len(nodes_chosen), 1]), y=y)
+            data.nodes_chosen = nodes_chosen
+            pos_data_list.append(data)
+            data.edge_wise_data = edge_index.tolist()
+            data.all_nodes_chosen = tmp[0]
 
         return pos_data_list

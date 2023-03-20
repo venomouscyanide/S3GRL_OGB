@@ -154,6 +154,7 @@ class SEALDataset(InMemoryDataset):
                 "optimize_sign": self.args.optimize_sign,
                 "k_heuristic": self.args.k_heuristic,
                 "k_node_set_strategy": self.args.k_node_set_strategy,
+                "learn_x": self.args.learn_x
             })
 
             if not self.rw_kwargs.get('m'):
@@ -369,6 +370,7 @@ class SEALDynamicDataset(Dataset):
                 "optimize_sign": self.args.optimize_sign,
                 "k_heuristic": self.args.k_heuristic,
                 "k_node_set_strategy": self.args.k_node_set_strategy,
+                "learn_x": self.args.learn_x
             })
             if not self.rw_kwargs.get('m'):
                 rw_kwargs = None
@@ -435,13 +437,20 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            if sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [data.x.to(device)]
+                    xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data, data.nodes_chosen)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                logits = model(xs, operator_batch_data, None, None, None)
+            else:
+                operator_batch_data = [data.batch]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             x = data.x if args.use_feature else None
             edge_weight = data.edge_weight if args.use_edge_weight else None
@@ -541,13 +550,20 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            if sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [data.x.to(device)]
+                    xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data, data.nodes_chosen)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                logits = model(xs, operator_batch_data, None, None, None)
+            else:
+                operator_batch_data = [data.batch]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -592,13 +608,20 @@ def _get_test_auc_with_prof(args, device, emb, model, test_loader):
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            if sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [data.x.to(device)]
+                    xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                logits = model(xs, operator_batch_data, None, None, None)
+            else:
+                operator_batch_data = [data.batch]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -622,13 +645,20 @@ def _get_test_auc(args, device, emb, model, test_loader):
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            if sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [data.x.to(device)]
+                    xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data, data.nodes_chosen)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                logits = model(xs, operator_batch_data, None, None, None)
+            else:
+                operator_batch_data = [data.batch]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -1333,7 +1363,10 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     follow_batch = None
     if args.model == "SIGN":
-        follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)] + ['nodes_chosen']
+        if args.learn_x:
+            follow_batch = ['nodes_chosen', 'edge_wise_data', 'all_nodes_chosen']
+        else:
+            follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)]
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         if args.pairwise:
@@ -1383,21 +1416,24 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         args.use_feature, node_embedding=emb).to(device)
         elif args.model == "SIGN":
             sign_k = args.sign_k
+            if args.learn_x:
+                num_feats = args.hidden_channels
+            else:
+                num_feats = train_dataset.num_features
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
+            model = SIGNNet(args.hidden_channels, sign_k, num_feats,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, num_nodes=data.num_nodes).to(
-                device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, num_nodes=data.num_nodes,
+                            learn_x=args.learn_x).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:
             torch.nn.init.xavier_uniform_(emb.weight)
             parameters += list(emb.parameters())
         optimizer = torch.optim.Adam(params=parameters, lr=args.lr, weight_decay=1e-4)
-        scd = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10,
-                                             min_lr=5e-5)
+        scd = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10, min_lr=5e-5)
         total_params = sum(p.numel() for param in parameters for p in param)
         print(f'Total number of parameters is {total_params}')
         if args.model == 'DGCNN':
@@ -1709,6 +1745,7 @@ if __name__ == '__main__':
     parser.add_argument('--split_by_year', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
     parser.add_argument('--normalize_feats', action='store_true', default=False, required=False)
+    parser.add_argument('--learn_x', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
