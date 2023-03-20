@@ -402,7 +402,7 @@ class SIGNNet(torch.nn.Module):
                 edge_index = torch.tensor(edge_index)
                 size_of_subg = len(nodes_overall)
                 if not edge_index.nelement():
-                    subgraph = torch.zeros(size=(size_of_subg, size_of_subg), device=self.device)
+                    subgraph = torch.zeros(size=(size_of_subg, size_of_subg))
                 else:
                     subgraph = SparseTensor(row=edge_index[0], col=edge_index[-1],
                                             sparse_sizes=(size_of_subg, size_of_subg))
