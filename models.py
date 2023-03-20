@@ -410,7 +410,7 @@ class SIGNNet(torch.nn.Module):
                 nodes_overall = torch.tensor(nodes_overall, dtype=torch.int, device=self.device)
                 all_subg_x = self.x_embedding(nodes_overall).to('cpu')
 
-                sliced_x = all_subg_x[nodes_in_strat]
+                sliced_x = all_subg_x[nodes_in_strat].to(self.device)
                 all_x.append(sliced_x)
 
                 ax = (subgraph @ all_subg_x)[nodes_in_strat]
