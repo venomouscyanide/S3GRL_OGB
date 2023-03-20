@@ -408,13 +408,13 @@ class SIGNNet(torch.nn.Module):
                                             sparse_sizes=(size_of_subg, size_of_subg))
 
                 nodes_overall = torch.tensor(nodes_overall, dtype=torch.int, device=self.device)
-                all_subg_x = self.x_embedding(nodes_overall)
+                all_subg_x = self.x_embedding(nodes_overall).to('cpu')
 
                 sliced_x = all_subg_x[nodes_in_strat]
                 all_x.append(sliced_x)
 
                 ax = (subgraph @ all_subg_x)[nodes_in_strat]
-                all_ax.append(ax)
+                all_ax.append(ax.to(self.device))
 
             x = torch.cat([torch.vstack(all_x), torch.vstack(all_ax)], dim=-1)
         else:
