@@ -1426,7 +1426,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
                             k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, num_nodes=data.num_nodes,
-                            learn_x=args.learn_x).to(device)
+                            learn_x=args.learn_x, device=device).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:

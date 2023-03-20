@@ -301,9 +301,11 @@ class GIN(torch.nn.Module):
 
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, num_feats, use_feature=False, node_embedding=None, dropout=0.5,
-                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, num_nodes=0, learn_x=False):
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, num_nodes=0, learn_x=False,
+                 device='cpu'):
         super().__init__()
 
+        self.device = device
         self.use_feature = use_feature
         self.node_embedding = node_embedding
 
@@ -400,12 +402,12 @@ class SIGNNet(torch.nn.Module):
                 edge_index = torch.tensor(edge_index)
                 size_of_subg = len(nodes_overall)
                 if not edge_index.nelement():
-                    subgraph = torch.zeros(size=(size_of_subg, size_of_subg))
+                    subgraph = torch.zeros(size=(size_of_subg, size_of_subg), device=self.device)
                 else:
                     subgraph = SparseTensor(row=edge_index[0], col=edge_index[-1],
                                             sparse_sizes=(size_of_subg, size_of_subg))
 
-                nodes_overall = torch.tensor(nodes_overall, dtype=torch.int)
+                nodes_overall = torch.tensor(nodes_overall, dtype=torch.int, device=self.device)
                 all_subg_x = self.x_embedding(nodes_overall)
 
                 sliced_x = all_subg_x[nodes_in_strat]
