@@ -229,6 +229,7 @@ class OptimizedSignOperations:
 
             # source, target is always 0, 1
             strat = sign_kwargs['k_node_set_strategy']
+            node_map = {k: v for k, v in zip(list(range(csr_subgraph.shape[0])), tmp[0])}
             if not directed:
                 if strat == 'union':
                     one_hop_nodes = neighbors({0}, csr_subgraph).union(neighbors({1}, csr_subgraph))
@@ -275,6 +276,7 @@ class OptimizedSignOperations:
             for index, power_of_a in enumerate(powers_of_a, start=1):
                 data[f'x{index}'] = power_of_a @ subg_x
 
+            data.nodes_chosen = torch.tensor([src, dst] + [node_map[node] for node in one_hop_nodes], dtype=torch.int)
             pos_data_list.append(data)
 
         return pos_data_list

@@ -300,7 +300,7 @@ class GIN(torch.nn.Module):
 
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
-                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False):
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, num_nodes=0):
         super().__init__()
 
         self.use_feature = use_feature
@@ -314,6 +314,7 @@ class SIGNNet(torch.nn.Module):
         initial_channels = hidden_channels
 
         initial_channels += train_dataset.num_features - hidden_channels
+        self.x_embedding = Embedding(num_nodes, initial_channels)
         if self.node_embedding is not None:
             initial_channels += node_embedding.embedding_dim
 
@@ -342,9 +343,9 @@ class SIGNNet(torch.nn.Module):
                 raise NotImplementedError(f"Check pool strat: {self.k_pool_strategy}")
             self.link_pred_mlp = MLP([hidden_channels * channels, hidden_channels, 1], dropout=dropout,
                                      batch_norm=True, act_first=True, act='relu')
-        self._uniform_norm()
 
     def _uniform_norm(self):
+        torch.nn.init.xavier_uniform_(self.x_embedding.weight.data)
         for lin in self.link_pred_mlp.lins:
             torch.nn.init.xavier_uniform_(lin.weight.data)
             lin.bias.data.fill_(0.0)
@@ -389,7 +390,8 @@ class SIGNNet(torch.nn.Module):
 
         return h
 
-    def forward(self, xs, batch):
+    def forward(self, xs, batch, nodes_chosen):
+        xs[0] = self.x_embedding(nodes_chosen)
         xs_cat = torch.cat(xs, dim=-1)
         x = xs_cat
         x = self.operator_diff(x)
@@ -401,5 +403,3 @@ class SIGNNet(torch.nn.Module):
 
     def reset_parameters(self):
         self._uniform_norm()
-        self.operator_diff.reset_parameters()
-        self.link_pred_mlp.reset_parameters()

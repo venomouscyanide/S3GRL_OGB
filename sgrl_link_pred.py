@@ -441,7 +441,7 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
             operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+            logits = model(xs, operator_batch_data, data.nodes_chosen)
         else:
             x = data.x if args.use_feature else None
             edge_weight = data.edge_weight if args.use_edge_weight else None
@@ -547,7 +547,7 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
             operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+            logits = model(xs, operator_batch_data, data.nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -628,7 +628,7 @@ def _get_test_auc(args, device, emb, model, test_loader):
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
             operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+            logits = model(xs, operator_batch_data, data.nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -1333,7 +1333,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     follow_batch = None
     if args.model == "SIGN":
-        follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)]
+        follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)] + ['nodes_chosen']
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         if args.pairwise:
@@ -1388,7 +1388,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, num_nodes=data.num_nodes).to(
+                device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:
