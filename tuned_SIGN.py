@@ -328,11 +328,12 @@ class OptimizedSignOperations:
                     raise NotImplementedError(f"check strat {strat}")
 
             nodes_chosen = [0, 1] + list(one_hop_nodes)
+
             data = Data(x=torch.ones(size=[len(nodes_chosen), 1]), y=y)
-            data.nodes_chosen = nodes_chosen
+            data.nodes_chosen = torch.tensor(nodes_chosen)
+            data.edge_wise_data = edge_index.t()
+            data.all_nodes_chosen = torch.tensor(tmp[0])
             pos_data_list.append(data)
-            data.edge_wise_data = edge_index.tolist()
-            data.all_nodes_chosen = tmp[0]
 
         return pos_data_list
 
@@ -358,10 +359,10 @@ class OptimizedSignOperations:
             edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
 
             nodes_chosen = [0, 1]
-            data = Data(x=torch.ones(size=[len(nodes_chosen), 1]), y=y)
-            data.nodes_chosen = nodes_chosen
+            data = Data(x=torch.zeros(size=[len(nodes_chosen)]), y=y)
+            data.nodes_chosen = torch.tensor(nodes_chosen)
+            data.edge_wise_data = edge_index.t()
+            data.all_nodes_chosen = torch.tensor(tmp[0])
             pos_data_list.append(data)
-            data.edge_wise_data = edge_index.tolist()
-            data.all_nodes_chosen = tmp[0]
 
         return pos_data_list

@@ -449,7 +449,8 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
                 logits = model(xs, operator_batch_data, None, None, None)
             else:
-                operator_batch_data = [data.batch]
+                operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
+                                                      data['all_nodes_chosen_batch']]
                 logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             x = data.x if args.use_feature else None
@@ -562,7 +563,8 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
                 logits = model(xs, operator_batch_data, None, None, None)
             else:
-                operator_batch_data = [data.batch]
+                operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
+                                                      data['all_nodes_chosen_batch']]
                 logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
@@ -620,7 +622,8 @@ def _get_test_auc_with_prof(args, device, emb, model, test_loader):
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
                 logits = model(xs, operator_batch_data, None, None, None)
             else:
-                operator_batch_data = [data.batch]
+                operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
+                                                      data['all_nodes_chosen_batch']]
                 logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
@@ -657,7 +660,8 @@ def _get_test_auc(args, device, emb, model, test_loader):
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
                 logits = model(xs, operator_batch_data, None, None, None)
             else:
-                operator_batch_data = [data.batch]
+                operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
+                                                      data['all_nodes_chosen_batch']]
                 logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)

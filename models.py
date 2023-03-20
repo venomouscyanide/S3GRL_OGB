@@ -402,17 +402,26 @@ class SIGNNet(torch.nn.Module):
             # TODO; add support for edge weight and sign_k > 1
             all_x = []
             all_ax = []
-            for edge_index, nodes_in_strat, nodes_overall in tqdm(
-                    list(zip(edge_wise_data, nodes_chosen, all_nodes_chosen)), ncols=16):
-                edge_index = torch.tensor(edge_index)
+
+            unique_batch_ids, _ = np.unique(batch[0].cpu().numpy(), return_index=True)
+
+            all_nodes_chosen_batch = batch[-1]
+            edge_wise_batch = batch[-2]
+            nodes_chosen_batch = batch[-3]
+
+            for batch_id in tqdm(unique_batch_ids, ncols=16, disable=True):
+                edge_index = edge_wise_data[edge_wise_batch == batch_id]
+                nodes_in_strat = nodes_chosen[nodes_chosen_batch == batch_id]
+                nodes_overall = all_nodes_chosen[all_nodes_chosen_batch == batch_id]
+
                 size_of_subg = len(nodes_overall)
+
                 if not edge_index.nelement():
                     subgraph = torch.zeros(size=(size_of_subg, size_of_subg))
                 else:
                     subgraph = SparseTensor(row=edge_index[0], col=edge_index[-1],
                                             sparse_sizes=(size_of_subg, size_of_subg))
 
-                nodes_overall = torch.tensor(nodes_overall, dtype=torch.int, device=self.device)
                 all_subg_x = self.x_embedding(nodes_overall).to('cpu')
 
                 sliced_x = all_subg_x[nodes_in_strat].to(self.device)
@@ -426,7 +435,7 @@ class SIGNNet(torch.nn.Module):
             x = torch.cat(xs, dim=-1)
         x = self.operator_diff(x)
 
-        x = self._centre_pool_helper(batch, x, -1)
+        x = self._centre_pool_helper(batch, x, 0)
 
         x = self.link_pred_mlp(x)
         return x
