@@ -8,6 +8,7 @@ from torch_geometric.nn import GCNConv, SAGEConv, GINConv, global_sort_pool, glo
     global_max_pool
 from torch_geometric.utils import dropout_adj, to_dense_adj, to_scipy_sparse_matrix
 from torch_sparse import SparseTensor
+from tqdm import tqdm
 
 
 class GCN(torch.nn.Module):
@@ -398,7 +399,8 @@ class SIGNNet(torch.nn.Module):
         if xs is None:
             all_x = []
             all_ax = []
-            for edge_index, nodes_in_strat, nodes_overall in zip(edge_wise_data, nodes_chosen, all_nodes_chosen):
+            for edge_index, nodes_in_strat, nodes_overall in tqdm(
+                    list(zip(edge_wise_data, nodes_chosen, all_nodes_chosen)), ncols=16):
                 edge_index = torch.tensor(edge_index)
                 size_of_subg = len(nodes_overall)
                 if not edge_index.nelement():
