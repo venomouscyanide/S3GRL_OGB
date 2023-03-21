@@ -448,3 +448,5 @@ class SIGNNet(torch.nn.Module):
 
     def reset_parameters(self):
         self._uniform_norm()
+        self.link_pred_mlp.reset_parameters()
+        self.operator_diff.reset_parameters()
