@@ -316,6 +316,7 @@ class SIGNNet(torch.nn.Module):
         self.k_pool_strategy = k_pool_strategy  # k-heuristic pool strat
         self.hidden_channels = hidden_channels
         initial_channels = hidden_channels
+        self.num_layers = num_layers
 
         initial_channels += num_feats - hidden_channels
         if learn_x:
@@ -400,9 +401,8 @@ class SIGNNet(torch.nn.Module):
     def forward(self, xs, batch, nodes_chosen=None, edge_wise_data=None, all_nodes_chosen=None,
                 edge_weight_calculated=None):
         if xs is None:
-            # TODO; add support for sign_k > 1
             all_x = []
-            all_ax = []
+            all_ax = [[] for _ in range(self.num_layers)]
 
             unique_batch_ids, _ = np.unique(batch[0].cpu().numpy(), return_index=True)
 
@@ -430,10 +430,14 @@ class SIGNNet(torch.nn.Module):
                 sliced_x = all_subg_x[nodes_in_strat]
                 all_x.append(sliced_x)
 
-                ax = (subgraph @ all_subg_x)[nodes_in_strat]
-                all_ax.append(ax)
+                subgraph_pow = subgraph
+                for index in range(self.num_layers):
+                    all_ax[index].append((subgraph_pow @ all_subg_x)[nodes_in_strat])
+                    subgraph_pow = subgraph @ subgraph_pow
 
-            x = torch.cat([torch.vstack(all_x), torch.vstack(all_ax)], dim=-1)
+            x = torch.cat([torch.vstack(all_x)], dim=-1)
+            for layer in range(self.num_layers):
+                x = torch.cat([x, torch.vstack(all_ax[layer])], dim=-1)
         else:
             x = torch.cat(xs, dim=-1)
         x = self.operator_diff(x)
