@@ -1480,6 +1480,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                             k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, num_nodes=data.num_nodes,
                             learn_x=args.learn_x, device=device, x_init=data.x).to(device)
 
+        print(f"Model architecture is: {model}")
         parameters = list(model.parameters())
         if args.train_node_embedding:
             torch.nn.init.xavier_uniform_(emb.weight)
