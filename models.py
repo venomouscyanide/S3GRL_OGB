@@ -430,10 +430,9 @@ class SIGNNet(torch.nn.Module):
                 sliced_x = all_subg_x[nodes_in_strat]
                 all_x.append(sliced_x)
 
-                subgraph_pow = subgraph
                 for index in range(self.num_layers):
-                    all_ax[index].append((subgraph_pow @ all_subg_x)[nodes_in_strat])
-                    subgraph_pow = subgraph @ subgraph_pow
+                    all_ax[index].append((subgraph @ all_subg_x)[nodes_in_strat])
+                    subgraph = subgraph @ subgraph
 
             x = torch.cat([torch.vstack(all_x)], dim=-1)
             for layer in range(self.num_layers):
