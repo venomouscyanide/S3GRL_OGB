@@ -333,6 +333,7 @@ class OptimizedSignOperations:
             data.nodes_chosen = torch.tensor(nodes_chosen)
             data.edge_wise_data = edge_index.t()
             data.all_nodes_chosen = torch.tensor(tmp[0])
+            data.edge_weight_calculated = value
             pos_data_list.append(data)
 
         return pos_data_list
@@ -363,6 +364,7 @@ class OptimizedSignOperations:
             data.nodes_chosen = torch.tensor(nodes_chosen)
             data.edge_wise_data = edge_index.t()
             data.all_nodes_chosen = torch.tensor(tmp[0])
+            data.edge_weight_calculated = value
             pos_data_list.append(data)
 
         return pos_data_list

@@ -397,29 +397,32 @@ class SIGNNet(torch.nn.Module):
 
         return h
 
-    def forward(self, xs, batch, nodes_chosen, edge_wise_data, all_nodes_chosen):
+    def forward(self, xs, batch, nodes_chosen=None, edge_wise_data=None, all_nodes_chosen=None,
+                edge_weight_calculated=None):
         if xs is None:
-            # TODO; add support for edge weight and sign_k > 1
+            # TODO; add support for sign_k > 1
             all_x = []
             all_ax = []
 
             unique_batch_ids, _ = np.unique(batch[0].cpu().numpy(), return_index=True)
 
-            all_nodes_chosen_batch = batch[-1]
-            edge_wise_batch = batch[-2]
-            nodes_chosen_batch = batch[-3]
+            edge_weight_calculated_batch = batch[-1]
+            all_nodes_chosen_batch = batch[-2]
+            edge_wise_batch = batch[-3]
+            nodes_chosen_batch = batch[-4]
 
             for batch_id in tqdm(unique_batch_ids, ncols=16, disable=True):
-                edge_index = edge_wise_data[edge_wise_batch == batch_id]
+                edge_index = edge_wise_data[edge_wise_batch == batch_id].t()
                 nodes_in_strat = nodes_chosen[nodes_chosen_batch == batch_id]
                 nodes_overall = all_nodes_chosen[all_nodes_chosen_batch == batch_id]
+                edge_weight = edge_weight_calculated[edge_weight_calculated_batch == batch_id]
 
                 size_of_subg = len(nodes_overall)
 
                 if not edge_index.nelement():
                     subgraph = torch.zeros(size=(size_of_subg, size_of_subg), device=self.device)
                 else:
-                    subgraph = SparseTensor(row=edge_index[0], col=edge_index[-1],
+                    subgraph = SparseTensor(row=edge_index[0], col=edge_index[-1], value=edge_weight,
                                             sparse_sizes=(size_of_subg, size_of_subg))
 
                 all_subg_x = self.x_embedding(nodes_overall)

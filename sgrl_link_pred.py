@@ -407,13 +407,23 @@ def profile_train(model, train_loader, optimizer, device, emb, train_dataset, ar
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            if sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [data.x.to(device)]
+                    xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                logits = model(xs, operator_batch_data)
+            else:
+                operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
+                                                      data['all_nodes_chosen_batch'],
+                                                      data['edge_weight_calculated_batch']]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen,
+                               data.edge_weight_calculated)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         loss = BCEWithLogitsLoss()(logits.view(-1), data.y.to(torch.float))
@@ -447,11 +457,13 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
                 xs = None
             if not args.learn_x:
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-                logits = model(xs, operator_batch_data, None, None, None)
+                logits = model(xs, operator_batch_data)
             else:
                 operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
-                                                      data['all_nodes_chosen_batch']]
-                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
+                                                      data['all_nodes_chosen_batch'],
+                                                      data['edge_weight_calculated_batch']]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen,
+                               data.edge_weight_calculated)
         else:
             x = data.x if args.use_feature else None
             edge_weight = data.edge_weight if args.use_edge_weight else None
@@ -486,13 +498,27 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
         pos_node_id = pos_data.node_id if emb else None
         pos_num_nodes = pos_data.num_nodes
         if args.model == 'SIGN':
-            if args.sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, args.sign_k + 1)]
+            sign_k = args.sign_k
+            if args.sign_type == 'hybrid':
+                sign_k = args.sign_k * 2 - 1
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [data.x.to(device)]
+                    xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            pos_logits = model(xs, operator_batch_data)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                pos_logits = model(xs, operator_batch_data)
+            else:
+                operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
+                                                      data['all_nodes_chosen_batch'],
+                                                      data['edge_weight_calculated_batch']]
+                pos_logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data,
+                                   data.all_nodes_chosen,
+                                   data.edge_weight_calculated)
         else:
             pos_logits = model(pos_num_nodes, pos_data.z, pos_data.edge_index, data.batch, pos_x, pos_edge_weight,
                                pos_node_id)
@@ -503,13 +529,29 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
         neg_node_id = neg_data.node_id if emb else None
         neg_num_nodes = neg_data.num_nodes
         if args.model == 'SIGN':
-            if args.sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, args.sign_k + 1)]
+            sign_k = args.sign_k
+            if args.sign_type == 'hybrid':
+                sign_k = args.sign_k * 2 - 1
+            if not args.learn_x:
+                if sign_k != -1:
+                    xs = [neg_data.x.to(device)]
+                    xs += [neg_data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
+                else:
+                    xs = [neg_data[f'x{args.sign_k}'].to(device)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            neg_logits = model(xs, operator_batch_data)
+                xs = None
+            if not args.learn_x:
+                operator_batch_data = [neg_data.batch] + [neg_data[f"x{index}_batch"] for index in
+                                                          range(1, args.sign_k + 1)]
+                neg_logits = model(xs, operator_batch_data)
+            else:
+                operator_batch_data = [neg_data.batch] + [neg_data['nodes_chosen_batch'],
+                                                          neg_data['edge_wise_data_batch'],
+                                                          neg_data['all_nodes_chosen_batch'],
+                                                          neg_data['edge_weight_calculated_batch']]
+                neg_logits = model(xs, operator_batch_data, neg_data.nodes_chosen, neg_data.edge_wise_data,
+                                   neg_data.all_nodes_chosen,
+                                   neg_data.edge_weight_calculated)
         else:
             neg_logits = model(neg_num_nodes, neg_data.z, neg_data.edge_index, neg_data.batch, neg_x, neg_edge_weight,
                                neg_node_id)
@@ -561,11 +603,13 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
                 xs = None
             if not args.learn_x:
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-                logits = model(xs, operator_batch_data, None, None, None)
+                logits = model(xs, operator_batch_data)
             else:
                 operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
-                                                      data['all_nodes_chosen_batch']]
-                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
+                                                      data['all_nodes_chosen_batch'], data[
+                                                          'edge_weight_calculated_batch']]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen,
+                               data.edge_weight_calculated)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -620,11 +664,13 @@ def _get_test_auc_with_prof(args, device, emb, model, test_loader):
                 xs = None
             if not args.learn_x:
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-                logits = model(xs, operator_batch_data, None, None, None)
+                logits = model(xs, operator_batch_data)
             else:
                 operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
-                                                      data['all_nodes_chosen_batch']]
-                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
+                                                      data['all_nodes_chosen_batch'], data[
+                                                          'edge_weight_calculated_batch']]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen,
+                               data.edge_weight_calculated)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -658,11 +704,13 @@ def _get_test_auc(args, device, emb, model, test_loader):
                 xs = None
             if not args.learn_x:
                 operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-                logits = model(xs, operator_batch_data, None, None, None)
+                logits = model(xs, operator_batch_data)
             else:
                 operator_batch_data = [data.batch] + [data['nodes_chosen_batch'], data['edge_wise_data_batch'],
-                                                      data['all_nodes_chosen_batch']]
-                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen)
+                                                      data['all_nodes_chosen_batch'], data[
+                                                          'edge_weight_calculated_batch']]
+                logits = model(xs, operator_batch_data, data.nodes_chosen, data.edge_wise_data, data.all_nodes_chosen,
+                               data.edge_weight_calculated)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -1368,7 +1416,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
     follow_batch = None
     if args.model == "SIGN":
         if args.learn_x:
-            follow_batch = ['nodes_chosen', 'edge_wise_data', 'all_nodes_chosen']
+            follow_batch = ['nodes_chosen', 'edge_wise_data', 'all_nodes_chosen', 'edge_weight_calculated']
         else:
             follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)]
 
