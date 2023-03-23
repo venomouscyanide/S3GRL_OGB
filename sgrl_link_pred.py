@@ -440,8 +440,9 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)] + \
+                                  [data['edge_id_batch']]
+            logits = model(xs, operator_batch_data, data.edge_id)
         else:
             x = data.x if args.use_feature else None
             edge_weight = data.edge_weight if args.use_edge_weight else None
@@ -546,8 +547,9 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)] + [
+                data['edge_id_batch']]
+            logits = model(xs, operator_batch_data, data.edge_id)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -627,8 +629,9 @@ def _get_test_auc(args, device, emb, model, test_loader):
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
-            logits = model(xs, operator_batch_data)
+            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)] + [
+                data['edge_id_batch']]
+            logits = model(xs, operator_batch_data, data.edge_id)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -1105,22 +1108,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
         transformed_data = norm(data)
         data.x = transformed_data.x
 
-    if args.edge_feature:
-        # Use gtrick library to encode edge features
-        edim = 1
-        if args.edge_feature == 'cn':
-            ef = CommonNeighbors(data.edge_index, batch_size=1024)
-        elif args.edge_feature == 'ra':
-            ef = ResourceAllocation(data.edge_index, batch_size=1024)
-        elif args.edge_feature == 'aa':
-            ef = AdamicAdar(data.edge_index, batch_size=1024)
-        elif args.edge_feature == 'ad':
-            ef = AnchorDistance(data, 3, 500, 200)
-            edim = 3
-        data.edge_weight = ef(edges=data.edge_index.t())
-        if edim > 1:
-            data.edge_weight = torch.mean(data.edge_weight, dim=-1)
-
     evaluator = None
     if args.dataset.startswith('ogbl'):
         evaluator = Evaluator(name=args.dataset)
@@ -1333,7 +1320,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     follow_batch = None
     if args.model == "SIGN":
-        follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)]
+        follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)] + ['edge_id']
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         if args.pairwise:
@@ -1357,6 +1344,35 @@ def run_sgrl_learning(args, device, hypertuning=False):
         emb.weight.requires_grad = False
     else:
         emb = None
+
+    edge_map = edge_features = None
+    if args.edge_feature:
+        # Use gtrick library to encode edge features
+        edim = 1
+        edge_features = None
+        if args.edge_feature == 'cn':
+            edge_features = CommonNeighbors(data.edge_index, batch_size=1024)(edges=data.edge_index.t())
+        elif args.edge_feature == 'ra':
+            edge_features = ResourceAllocation(data.edge_index, batch_size=1024)(edges=data.edge_index.t())
+        elif args.edge_feature == 'aa':
+            edge_features = AdamicAdar(data.edge_index, batch_size=1024)(edges=data.edge_index.t())
+        elif args.edge_feature == 'ad':
+            edge_features = AnchorDistance(data, 3, 500, 200)
+        elif args.edge_feature == 'all':
+            edges_train = torch.cat([split_edge['train']['edge'], split_edge['train']['edge_neg']])
+            edges_val = torch.cat([split_edge['valid']['edge'], split_edge['valid']['edge_neg']])
+            edges_test = torch.cat([split_edge['test']['edge'], split_edge['test']['edge_neg']])
+            all_edges = torch.cat([edges_train, edges_val, edges_test])
+            feat_cn = CommonNeighbors(all_edges.t(), batch_size=1024)(edges=all_edges)
+            feat_ra = ResourceAllocation(all_edges.t(), batch_size=1024)(edges=all_edges)
+            feat_aa = AdamicAdar(all_edges.t(), batch_size=1024)(edges=all_edges)
+            data_copy = cp.deepcopy(data)
+            data_copy.edge_index = all_edges.t()
+            feat_ad = AnchorDistance(data_copy, 3, 500, 200)(edges=all_edges)
+            edge_features = torch.cat(
+                (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], feat_cn, feat_ra, feat_aa,
+                 feat_ad), dim=-1)
+            edge_map = {(int(v[0]), int(v[1])): k for k, v in zip(range(all_edges.shape[0]), all_edges)}
 
     seed_everything(args.seed)  # reset rng for model weights
     for run in range(args.runs):
@@ -1388,7 +1404,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, ea=edge_features,
+                            edge_map=edge_map).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:

@@ -187,7 +187,7 @@ class OptimizedSignOperations:
 
             for index, power_of_a in enumerate(powers_of_a, start=1):
                 data[f'x{index}'] = power_of_a @ subg_x
-
+            data.edge_id = torch.tensor([src, dst])
             pos_data_list.append(data)
 
         return pos_data_list
@@ -275,6 +275,7 @@ class OptimizedSignOperations:
             for index, power_of_a in enumerate(powers_of_a, start=1):
                 data[f'x{index}'] = power_of_a @ subg_x
 
+            data.edge_id = torch.tensor([src, dst])
             pos_data_list.append(data)
 
         return pos_data_list
