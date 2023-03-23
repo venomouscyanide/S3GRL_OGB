@@ -824,6 +824,16 @@ def run_sgrl_learning(args, device, hypertuning=False):
         if args.dataset == 'ogbl-ppa':
             dataset.data.x = dataset.data.x.type(torch.FloatTensor)
         data = dataset[0]
+        if 'edge_neg' not in split_edge['train']:
+            from torch_geometric.utils import add_self_loops
+            from torch_geometric.utils import negative_sampling
+            pos_edge = split_edge['train']['edge'].t()
+            new_edge_index, _ = add_self_loops(data.edge_index)
+            neg_edge = negative_sampling(
+                new_edge_index, num_nodes=data.num_nodes,
+                num_neg_samples=pos_edge.size(1) * args.neg_ratio)
+            split_edge['train']['edge_neg'] = neg_edge
+
 
     elif args.dataset.startswith('ogbl-vessel'):
         dataset = PygLinkPropPredDataset(name=args.dataset)
@@ -1086,7 +1096,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             data.x = extra_feats
         print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
 
-    if args.dataset == 'ogbl-ppa':
+    augment_ppa = False
+    if args.dataset == 'ogbl-ppa' and augment_ppa:
         # https://github.com/lustoo/OGB_link_prediction
         from aug_helper import resource_allocation
         adj_matrix = ssp.csr_matrix(
