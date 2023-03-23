@@ -1378,15 +1378,15 @@ def run_sgrl_learning(args, device, hypertuning=False):
             # feat_cn = CommonNeighbors(all_edges.t(), batch_size=1024)(edges=all_edges)
             # feat_ra = ResourceAllocation(all_edges.t(), batch_size=1024)(edges=all_edges)
             # feat_aa = AdamicAdar(all_edges.t(), batch_size=1024)(edges=all_edges)
-            data_copy = cp.deepcopy(data)
-            data_copy.edge_index = all_edges.t()
-            feat_ad = AnchorDistance(data_copy, 3, 500, 200)(edges=all_edges)
+            # data_copy = cp.deepcopy(data)
+            # data_copy.edge_index = all_edges.t()
+            # feat_ad = AnchorDistance(data_copy, 3, 500, 200)(edges=all_edges)
 
             adj_matrix = ssp.csr_matrix(
                 (torch.ones(data.edge_index.size(1), dtype=int), (data.edge_index[0], data.edge_index[1])),
                 shape=(data.num_nodes, data.num_nodes)
             )
-            edge_features = torch.cat([torch.stack(resource_allocation(adj_matrix, all_edges)).t(), feat_ad])
+            edge_features = torch.stack(resource_allocation(adj_matrix, all_edges)).t()
             # edge_features = torch.cat(
             #     (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], torch.stack(edge_features_cn_aa_ra).t()), dim=-1)
             edge_map = {(int(v[0]), int(v[1])): k for k, v in zip(range(all_edges.shape[0]), all_edges)}
