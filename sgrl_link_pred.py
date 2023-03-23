@@ -832,7 +832,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             neg_edge = negative_sampling(
                 new_edge_index, num_nodes=data.num_nodes,
                 num_neg_samples=pos_edge.size(1) * args.neg_ratio)
-            split_edge['train']['edge_neg'] = neg_edge
+            split_edge['train']['edge_neg'] = neg_edge.t()
 
 
     elif args.dataset.startswith('ogbl-vessel'):
