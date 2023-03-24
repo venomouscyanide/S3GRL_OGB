@@ -1104,7 +1104,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         else:
             raise NotImplementedError(f"init_representation: {init_representation} not supported.")
 
-    if args.dataset == 'ogbl-ddi':
+    if args.dataset == 'ogbl-ddi' and False:
         # https://github.com/chuanqichen/cs224w
         from aug_helper import get_features
         extra_feats = get_features(data.num_nodes, data)
@@ -1387,7 +1387,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             edge_features = AdamicAdar(data.edge_index, batch_size=1024)(edges=data.edge_index.t())
         elif args.edge_feature == 'ad':
             edge_features = AnchorDistance(data, 3, 500, 200)
-        elif args.edge_feature == 'all':
+        elif args.edge_feature == 'ppa':
             from aug_helper import resource_allocation
             edges_train = torch.cat([split_edge['train']['edge'], split_edge['train']['edge_neg']])
             edges_val = torch.cat([split_edge['valid']['edge'], split_edge['valid']['edge_neg']])
@@ -1408,6 +1408,30 @@ def run_sgrl_learning(args, device, hypertuning=False):
             edge_features = torch.cat(
                 (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], edge_features_ca_cn_ra), dim=-1)
             print("Constructing edge map")
+            edge_map = {}
+            for counter, src_dst in tqdm(list(zip(range(all_edges.shape[0]), all_edges)), ncols=70):
+                edge_map[(int(src_dst[0]), int(src_dst[1]))] = counter
+            edge_emb = torch.nn.Embedding.from_pretrained(edge_features, freeze=True)
+            edge_feature_size = edge_emb.weight.shape[-1]
+        elif args.edge_feature == 'ddi':
+            edges_train = torch.cat([split_edge['train']['edge'], split_edge['train']['edge_neg']])
+            edges_val = torch.cat([split_edge['valid']['edge'], split_edge['valid']['edge_neg']])
+            edges_test = torch.cat([split_edge['test']['edge'], split_edge['test']['edge_neg']])
+            all_edges = torch.cat([edges_train, edges_val, edges_test])
+
+            distance_feature = data.x
+            node_mask = []
+            for _ in range(3):
+                node_mask.append(np.random.choice(500, size=200, replace=False))
+            node_mask = np.array(node_mask)
+
+            data.x = torch.tensor(distance_feature, dtype=torch.float)
+            edge_attr = distance_feature[all_edges, :].mean(0)[:, node_mask].mean(2)
+
+            a_max = torch.max(edge_attr, dim=0, keepdim=True)[0]
+            a_min = torch.min(edge_attr, dim=0, keepdim=True)[0]
+            edge_features = (edge_attr - a_min) / (a_max - a_min + 1e-6)
+
             edge_map = {}
             for counter, src_dst in tqdm(list(zip(range(all_edges.shape[0]), all_edges)), ncols=70):
                 edge_map[(int(src_dst[0]), int(src_dst[1]))] = counter
