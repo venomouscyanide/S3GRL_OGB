@@ -1426,7 +1426,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             node_mask = np.array(node_mask)
 
             data.x = torch.tensor(distance_feature, dtype=torch.float)
-            edge_attr = distance_feature[all_edges, :].mean(0)[:, node_mask].mean(2)
+            edge_attr = distance_feature[all_edges.t(), :].mean(0)[:, node_mask].mean(2)
 
             a_max = torch.max(edge_attr, dim=0, keepdim=True)[0]
             a_min = torch.min(edge_attr, dim=0, keepdim=True)[0]
