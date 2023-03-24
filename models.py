@@ -300,7 +300,7 @@ class GIN(torch.nn.Module):
 
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
-                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, ea=None, edge_map=None):
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False, edge_feature_size=None):
         super().__init__()
 
         self.use_feature = use_feature
@@ -326,15 +326,13 @@ class SIGNNet(torch.nn.Module):
             mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=True)
-        self.edge_map = None
-        if ea is not None:
-            self.ea = Embedding.from_pretrained(ea, freeze=True)
-            self.edge_map = edge_map
-            self.edge_encoder = Linear(self.ea.weight.shape[-1], hidden_channels)
+        if edge_feature_size is not None:
+            self.edge_encoder = Linear(edge_feature_size, hidden_channels)
 
         if not self.k_heuristic:
-            if ea is not None:
+            if edge_feature_size is not None:
                 hidden_channels = hidden_channels * 2
+
             self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout, batch_norm=True,
                                      act_first=True, act='relu')
         else:
@@ -348,8 +346,10 @@ class SIGNNet(torch.nn.Module):
                 channels = 1 + self.k_heuristic
             else:
                 raise NotImplementedError(f"Check pool strat: {self.k_pool_strategy}")
-            if ea is not None:
+            if edge_feature_size is not None:
                 hidden_channels = hidden_channels + hidden_channels * channels
+            else:
+                hidden_channels = hidden_channels * channels
             self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout,
                                      batch_norm=True, act_first=True, act='relu')
 
@@ -364,7 +364,7 @@ class SIGNNet(torch.nn.Module):
             torch.nn.init.xavier_uniform_(lin.weight.data)
             lin.bias.data.fill_(0.0)
 
-    def _centre_pool_helper(self, batch, h, op_index, edge_id):
+    def _centre_pool_helper(self, batch, h, op_index):
         # center pooling
         uq, center_indices = np.unique(batch[op_index].cpu().numpy(), return_index=True)
         if not self.k_heuristic:
@@ -397,19 +397,15 @@ class SIGNNet(torch.nn.Module):
                     center_indices.shape[0], self.hidden_channels * self.k_heuristic)
                 )
                 h = torch.concat([h_a, h_k], dim=-1)
-        _, edge_indices = np.unique(batch[-1].cpu().numpy(), return_index=True)
-        src_dst = list(map(lambda x: (int(x[0]), int(x[1])), zip(edge_id[edge_indices], edge_id[edge_indices + 1])))
-        lookup = torch.tensor([self.edge_map[src_dst_value] for src_dst_value in src_dst], dtype=torch.int)
-        # h = torch.concat([h, self.ea(lookup)], dim=-1)
-        return h, self.ea(lookup)
+        return h
 
-    def forward(self, xs, batch, edge_id):
+    def forward(self, xs, batch, edge_features):
         xs_cat = torch.cat(xs, dim=-1)
         x = xs_cat
         x = self.operator_diff(x)
 
-        x, edge_feats = self._centre_pool_helper(batch, x, 0, edge_id)
-        edge_feats_learnt = self.edge_encoder(edge_feats)
+        x = self._centre_pool_helper(batch, x, 0)
+        edge_feats_learnt = self.edge_encoder(edge_features)
         x = self.link_pred_mlp(torch.concat([x, edge_feats_learnt], dim=-1))
         return x
 

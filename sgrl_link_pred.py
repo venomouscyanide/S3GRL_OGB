@@ -422,7 +422,7 @@ def profile_train(model, train_loader, optimizer, device, emb, train_dataset, ar
     return total_loss / len(train_dataset)
 
 
-def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch):
+def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch, edge_emb, edge_map):
     # normal training with BCE logit loss
     model.train()
 
@@ -440,9 +440,15 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)] + \
-                                  [data['edge_id_batch']]
-            logits = model(xs, operator_batch_data, data.edge_id)
+            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+
+            _, edge_indices = np.unique(data['edge_id_batch'].cpu().numpy(), return_index=True)
+            src_dst = list(
+                map(lambda x: (int(x[0]), int(x[1])), zip(data.edge_id[edge_indices], data.edge_id[edge_indices + 1]))
+            )
+            edge_lookup = torch.tensor([edge_map[src_dst_value] for src_dst_value in src_dst], dtype=torch.int)
+            edge_feats = edge_emb(edge_lookup).to(device)
+            logits = model(xs, operator_batch_data, edge_feats)
         else:
             x = data.x if args.use_feature else None
             edge_weight = data.edge_weight if args.use_edge_weight else None
@@ -528,7 +534,7 @@ def get_loss(loss_function):
 
 
 @torch.no_grad()
-def test(evaluator, model, val_loader, device, emb, test_loader, args):
+def test(evaluator, model, val_loader, device, emb, test_loader, args, edge_emb, edge_map):
     model.eval()
 
     y_pred, y_true = [], []
@@ -547,9 +553,15 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)] + [
-                data['edge_id_batch']]
-            logits = model(xs, operator_batch_data, data.edge_id)
+            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+
+            _, edge_indices = np.unique(data['edge_id_batch'].cpu().numpy(), return_index=True)
+            src_dst = list(
+                map(lambda x: (int(x[0]), int(x[1])), zip(data.edge_id[edge_indices], data.edge_id[edge_indices + 1]))
+            )
+            edge_lookup = torch.tensor([edge_map[src_dst_value] for src_dst_value in src_dst], dtype=torch.int)
+            edge_feats = edge_emb(edge_lookup).to(device)
+            logits = model(xs, operator_batch_data, edge_feats)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -562,7 +574,7 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
         out, time_for_inference = _get_test_auc_with_prof(args, device, emb, model, test_loader)
     else:
         time_for_inference_start = default_timer()
-        out = _get_test_auc(args, device, emb, model, test_loader)
+        out = _get_test_auc(args, device, emb, model, test_loader, edge_emb, edge_map)
         time_for_inference_end = default_timer()
         time_for_inference = time_for_inference_end - time_for_inference_start
 
@@ -612,7 +624,7 @@ def _get_test_auc_with_prof(args, device, emb, model, test_loader):
 
 
 @torch.no_grad()
-def _get_test_auc(args, device, emb, model, test_loader):
+def _get_test_auc(args, device, emb, model, test_loader, edge_emb, edge_map):
     y_pred, y_true = [], []
     for data in tqdm(test_loader, ncols=70):
         data = data.to(device)
@@ -629,9 +641,15 @@ def _get_test_auc(args, device, emb, model, test_loader):
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
             else:
                 xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)] + [
-                data['edge_id_batch']]
-            logits = model(xs, operator_batch_data, data.edge_id)
+            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+
+            _, edge_indices = np.unique(data['edge_id_batch'].cpu().numpy(), return_index=True)
+            src_dst = list(
+                map(lambda x: (int(x[0]), int(x[1])), zip(data.edge_id[edge_indices], data.edge_id[edge_indices + 1]))
+            )
+            edge_lookup = torch.tensor([edge_map[src_dst_value] for src_dst_value in src_dst], dtype=torch.int)
+            edge_feats = edge_emb(edge_lookup).to(device)
+            logits = model(xs, operator_batch_data, edge_feats)
         else:
             logits = model(num_nodes, data.z, data.edge_index, data.batch, x, edge_weight, node_id)
         y_pred.append(logits.view(-1).cpu())
@@ -1356,7 +1374,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
     else:
         emb = None
 
-    edge_map = edge_features = None
+    edge_map = edge_feature_size = edge_emb = None
     if args.edge_feature:
         # Use gtrick library to encode edge features
         edim = 1
@@ -1386,10 +1404,15 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 (torch.ones(data.edge_index.size(1), dtype=int), (data.edge_index[0], data.edge_index[1])),
                 shape=(data.num_nodes, data.num_nodes)
             )
-            edge_features = torch.stack(resource_allocation(adj_matrix, all_edges)).t()
-            # edge_features = torch.cat(
-            #     (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], torch.stack(edge_features_cn_aa_ra).t()), dim=-1)
-            edge_map = {(int(v[0]), int(v[1])): k for k, v in zip(range(all_edges.shape[0]), all_edges)}
+            edge_features_ca_cn_ra = torch.stack(resource_allocation(adj_matrix, all_edges)).t()
+            edge_features = torch.cat(
+                (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], edge_features_ca_cn_ra), dim=-1)
+            print("Constructing edge map")
+            edge_map = {}
+            for counter, src_dst in tqdm(list(zip(range(all_edges.shape[0]), all_edges)), ncols=70):
+                edge_map[(int(src_dst[0]), int(src_dst[1]))] = counter
+            edge_emb = torch.nn.Embedding.from_pretrained(edge_features, freeze=True)
+            edge_feature_size = edge_emb.weight.shape[-1]
 
     seed_everything(args.seed)  # reset rng for model weights
     for run in range(args.runs):
@@ -1421,8 +1444,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
             model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
                             args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
                             dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp, ea=edge_features,
-                            edge_map=edge_map).to(device)
+                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp,
+                            edge_feature_size=edge_feature_size).to(device)
 
         parameters = list(model.parameters())
         if args.train_node_embedding:
@@ -1520,7 +1543,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
                 if not args.pairwise:
                     time_start_for_train_epoch = default_timer()
-                    loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch)
+                    loss = train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, epoch, edge_emb,
+                                     edge_map)
                     time_end_for_train_epoch = default_timer()
                     scd.step(loss)
                     all_train_times.append(time_end_for_train_epoch - time_start_for_train_epoch)
@@ -1530,7 +1554,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
                                           args, epoch)
 
             if epoch % args.eval_steps == 0:
-                results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args)
+                results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args,
+                                                   edge_emb, edge_map)
                 all_inference_times.append(time_for_inference)
                 if hypertuning:
                     tune.report(val_loss=loss, val_accuracy=results['AUC'][0])
