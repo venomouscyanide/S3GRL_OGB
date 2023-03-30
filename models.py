@@ -310,7 +310,7 @@ class MLP(nn.Module):
             nn.Linear(hidden1, hidden2),
             nn.ReLU(inplace=True),
             nn.Dropout(p=0.5),
-            nn.Linear(hidden2, hidden2)
+            nn.Linear(hidden2, 1)
         )
 
     def forward(self, x):
@@ -351,14 +351,14 @@ class SIGNNet(torch.nn.Module):
             self.operator_diff = torch_geometric.nn.MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=True)
         if edge_feature_size is not None:
-            self.edge_encoder = MLP(edge_feature_size, hidden_channels)
+            self.edge_encoder = MLP(edge_feature_size+hidden_channels, hidden_channels)
 
         if not self.k_heuristic:
             if edge_feature_size is not None:
                 hidden_channels = hidden_channels * 2
 
-            self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout, batch_norm=True,
-                                     act_first=True, act='relu')
+            # self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout, batch_norm=True,
+            #                          act_first=True, act='relu')
         else:
             if self.k_pool_strategy == "mean":
                 channels = 2
@@ -374,8 +374,8 @@ class SIGNNet(torch.nn.Module):
                 hidden_channels = hidden_channels + hidden_channels * channels
             else:
                 hidden_channels = hidden_channels * channels
-            self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout,
-                                     batch_norm=True, act_first=True, act='relu')
+            # self.link_pred_mlp = MLP([hidden_channels, hidden_channels, 1], dropout=dropout,
+            #                          batch_norm=True, act_first=True, act='relu')
 
         self._uniform_norm()
 
