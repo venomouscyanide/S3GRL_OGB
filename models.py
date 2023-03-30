@@ -2,6 +2,7 @@ import math
 import numpy as np
 import torch
 from torch import nn
+import torch_geometric
 from torch.nn import (ModuleList, Linear, Conv1d, MaxPool1d, Embedding, ReLU,
                       Sequential, BatchNorm1d as BN, BatchNorm1d)
 import torch.nn.functional as F
@@ -343,11 +344,11 @@ class SIGNNet(torch.nn.Module):
         if not use_mlp:
             # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
             mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
-            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
+            self.operator_diff = torch_geometric.nn.MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=False)
         else:
             mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
-            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
+            self.operator_diff = torch_geometric.nn.MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=True)
         if edge_feature_size is not None:
             self.edge_encoder = MLP(edge_feature_size, hidden_channels)
@@ -428,8 +429,8 @@ class SIGNNet(torch.nn.Module):
         x = self.operator_diff(x)
 
         x = self._centre_pool_helper(batch, x, 0)
-        edge_feats_learnt = self.edge_encoder(edge_features)
-        x = self.link_pred_mlp(torch.concat([x, edge_feats_learnt], dim=-1))
+        x = self.edge_encoder(torch.concat([x, edge_features], dim=-1))
+        # x = self.link_pred_mlp(torch.concat([x, edge_feats_learnt], dim=-1))
         return x
 
     def reset_parameters(self):

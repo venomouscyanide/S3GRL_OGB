@@ -1406,8 +1406,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 shape=(data.num_nodes, data.num_nodes)
             )
             edge_features_ca_cn_ra = torch.stack(resource_allocation_plus(adj_matrix, all_edges)).t()
-            edge_features = torch.cat(
-                (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], edge_features_ca_cn_ra), dim=-1)
+            edge_features = edge_features_ca_cn_ra
             print("Constructing edge map")
             edge_map = {}
             for counter, src_dst in tqdm(list(zip(range(all_edges.shape[0]), all_edges)), ncols=70):
