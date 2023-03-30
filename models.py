@@ -380,9 +380,9 @@ class SIGNNet(torch.nn.Module):
         self._uniform_norm()
 
     def _uniform_norm(self):
-        for lin in self.link_pred_mlp.lins:
-            torch.nn.init.xavier_uniform_(lin.weight.data)
-            lin.bias.data.fill_(0.0)
+        # for lin in self.link_pred_mlp.lins:
+        #     torch.nn.init.xavier_uniform_(lin.weight.data)
+        #     lin.bias.data.fill_(0.0)
 
         for lin in self.operator_diff.lins:
             torch.nn.init.xavier_uniform_(lin.weight.data)
