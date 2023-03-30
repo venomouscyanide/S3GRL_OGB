@@ -1123,7 +1123,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             shape=(data.num_nodes, data.num_nodes)
         )
         link_list = data.edge_index
-        _, data.edge_weight, _ = resource_allocation(adj_matrix, link_list)
+        data.edge_weight = torch.stack(resource_allocation(adj_matrix, link_list)[1]).t()
 
     if args.dataset == 'ogbl-vessel':
         # https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py
