@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import torch
+from torch import nn
 from torch.nn import (ModuleList, Linear, Conv1d, MaxPool1d, Embedding, ReLU,
                       Sequential, BatchNorm1d as BN, BatchNorm1d)
 import torch.nn.functional as F
@@ -297,6 +298,28 @@ class GIN(torch.nn.Module):
 
         return x
 
+class MLP(nn.Module):
+    def __init__(self, input_size, hidden_dim):
+        hidden1 = hidden_dim
+        hidden2 = hidden_dim
+        super(MLP, self).__init__()
+        self.linear = nn.Sequential(
+            nn.Linear(input_size, hidden1),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden1, hidden2),
+            nn.ReLU(inplace=True),
+            nn.Dropout(p=0.5),
+            nn.Linear(hidden2, hidden2)
+        )
+
+    def forward(self, x):
+        x = self.linear(x)
+        return x
+
+    def reset_parameters(self):
+        self.linear[0].reset_parameters()
+        self.linear[2].reset_parameters()
+        self.linear[5].reset_parameters()
 
 class SIGNNet(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
@@ -327,7 +350,7 @@ class SIGNNet(torch.nn.Module):
             self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
                                      plain_last=True)
         if edge_feature_size is not None:
-            self.edge_encoder = Linear(edge_feature_size, hidden_channels)
+            self.edge_encoder = MLP(edge_feature_size, hidden_channels)
 
         if not self.k_heuristic:
             if edge_feature_size is not None:

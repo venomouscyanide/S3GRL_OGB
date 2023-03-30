@@ -1114,7 +1114,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             data.x = extra_feats
         print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
 
-    augment_ppa = False
+    augment_ppa = True
     if args.dataset == 'ogbl-ppa' and augment_ppa:
         # https://github.com/lustoo/OGB_link_prediction
         from aug_helper import resource_allocation
@@ -1123,7 +1123,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             shape=(data.num_nodes, data.num_nodes)
         )
         link_list = data.edge_index
-        data.edge_weight = resource_allocation(adj_matrix, link_list)
+        _, data.edge_weight, _ = resource_allocation(adj_matrix, link_list)
 
     if args.dataset == 'ogbl-vessel':
         # https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py
