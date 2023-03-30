@@ -39,6 +39,7 @@ from ogb.linkproppred import PygLinkPropPredDataset, Evaluator
 import warnings
 from scipy.sparse import SparseEfficiencyWarning
 
+from aug_helper import resource_allocation
 from custom_losses import auc_loss, hinge_auc_loss
 from data_utils import read_label, read_edges
 from models import SAGE, DGCNN, GCN, GIN, SIGNNet
@@ -1117,13 +1118,13 @@ def run_sgrl_learning(args, device, hypertuning=False):
     augment_ppa = True
     if args.dataset == 'ogbl-ppa' and augment_ppa:
         # https://github.com/lustoo/OGB_link_prediction
-        from aug_helper import resource_allocation
+        from aug_helper import resource_allocation_plus
         adj_matrix = ssp.csr_matrix(
             (torch.ones(data.edge_index.size(1), dtype=int), (data.edge_index[0], data.edge_index[1])),
             shape=(data.num_nodes, data.num_nodes)
         )
         link_list = data.edge_index
-        data.edge_weight = resource_allocation(adj_matrix, link_list)[1]
+        data.edge_weight = resource_allocation(adj_matrix, link_list)
 
     if args.dataset == 'ogbl-vessel':
         # https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py
@@ -1388,7 +1389,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         elif args.edge_feature == 'ad':
             edge_features = AnchorDistance(data, 3, 500, 200)
         elif args.edge_feature == 'ppa':
-            from aug_helper import resource_allocation
+            from aug_helper import resource_allocation_plus
             edges_train = torch.cat([split_edge['train']['edge'], split_edge['train']['edge_neg']])
             edges_val = torch.cat([split_edge['valid']['edge'], split_edge['valid']['edge_neg']])
             edges_test = torch.cat([split_edge['test']['edge'], split_edge['test']['edge_neg']])
@@ -1404,7 +1405,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 (torch.ones(data.edge_index.size(1), dtype=int), (data.edge_index[0], data.edge_index[1])),
                 shape=(data.num_nodes, data.num_nodes)
             )
-            edge_features_ca_cn_ra = torch.stack(resource_allocation(adj_matrix, all_edges)).t()
+            edge_features_ca_cn_ra = torch.stack(resource_allocation_plus(adj_matrix, all_edges)).t()
             edge_features = torch.cat(
                 (data.x[all_edges.t()[0]], data.x[all_edges.t()[1]], edge_features_ca_cn_ra), dim=-1)
             print("Constructing edge map")

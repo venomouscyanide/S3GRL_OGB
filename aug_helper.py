@@ -39,7 +39,7 @@ def get_features(n_nodes, data):
     return features
 
 
-def resource_allocation(adj_matrix, link_list, batch_size=32768):
+def resource_allocation_plus(adj_matrix, link_list, batch_size=32768):
     '''
     0:cn neighbor
     1:aa
@@ -73,3 +73,26 @@ def resource_allocation(adj_matrix, link_list, batch_size=32768):
     ra = np.concatenate(ra, 0)
     aa = np.concatenate(aa, 0)
     return torch.FloatTensor(cn), torch.FloatTensor(ra), torch.FloatTensor(aa)
+
+
+def resource_allocation(adj_matrix, link_list, batch_size=32786):
+    # adapted from: https://github.com/lustoo/OGB_link_prediction/blob/main/PPA/generate_feature.py
+    A = adj_matrix
+    w = 1 / A.sum(axis=0)
+    w[np.isinf(w)] = 0
+    temp = np.log(A.sum(axis=0))
+    temp = 1 / temp
+    temp[np.isinf(temp)] = 1
+    D = A.multiply(w).tocsr()
+
+    link_index = link_list
+    link_loader = DataLoader(range(link_index.shape[1]), batch_size)
+    ra = []
+
+    print("Calculating ra values for edges")
+    for idx in tqdm(link_loader, ncols=70):
+        src, dst = link_index[0, idx], link_index[1, idx]
+        ra.append(np.array(np.sum(A[src].multiply(D[dst]), 1)).flatten())
+
+    ra = np.concatenate(ra, 0)
+    return torch.FloatTensor(ra)
