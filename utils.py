@@ -672,7 +672,7 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
         if split == 'train':
-            target_neg = torch.randint(0, num_nodes, [target.size(0), 1],
+            target_neg = torch.randint(0, num_nodes, [target.size(0) * neg_ratio, 1],
                                        dtype=torch.long)
         else:
             target_neg = split_edge[split]['target_node_neg']
@@ -680,11 +680,16 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
         num_source = source.size(0)
         perm = np.random.permutation(num_source)
         perm = perm[:int(percent / 100 * num_source)]
-        source, target, target_neg = source[perm], target[perm], target_neg[perm, :]
+
+        num_neg = target_neg.size(0)
+        perm_neg = np.random.permutation(num_neg)
+        perm_neg = perm_neg[:int(percent / 100 * num_neg)]
+
+        source, target, target_neg = source[perm], target[perm], target_neg[perm_neg, :]
         pos_edge = torch.stack([source, target])
-        neg_per_target = target_neg.size(1)
+        neg_per_target = target_neg.size(1) * neg_ratio
         neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
-                                target_neg.view(-1)])
+                                target_neg.view(-1)[:len(source.repeat_interleave(neg_per_target))]])
     return pos_edge, neg_edge
 
 
