@@ -815,7 +815,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         f.write('\n' + cmd_input)
 
     # SGRL Dataset prep + Training Flow
-    if args.dataset.startswith('ogbl') and not args.dataset.startswith('ogbl-vessel'):
+    if args.dataset.startswith('ogbl'):
         dataset = PygLinkPropPredDataset(name=args.dataset)
         split_edge = dataset.get_edge_split()
         if args.dataset == 'ogbl-ppa':
@@ -826,7 +826,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
         dataset = PygLinkPropPredDataset(name=args.dataset)
         split_edge = dataset.get_edge_split()
         data = dataset[0]
-        del split_edge['train']['edge_neg']  # force sample train negative edges
         # normalize node features
         data.x[:, 0] = torch.nn.functional.normalize(data.x[:, 0], dim=0)
         data.x[:, 1] = torch.nn.functional.normalize(data.x[:, 1], dim=0)
