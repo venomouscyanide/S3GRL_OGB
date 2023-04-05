@@ -825,15 +825,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
             dataset.data.x = dataset.data.x.type(torch.FloatTensor)
         data = dataset[0]
 
-    elif args.dataset.startswith('ogbl-vessel'):
-        dataset = PygLinkPropPredDataset(name=args.dataset)
-        split_edge = dataset.get_edge_split()
-        data = dataset[0]
-        # normalize node features
-        data.x[:, 0] = torch.nn.functional.normalize(data.x[:, 0], dim=0)
-        data.x[:, 1] = torch.nn.functional.normalize(data.x[:, 1], dim=0)
-        data.x[:, 2] = torch.nn.functional.normalize(data.x[:, 2], dim=0)
-
     elif args.dataset.startswith('attributed'):
         dataset_name = args.dataset.split('-')[-1]
         path = osp.join('dataset', dataset_name)
@@ -982,6 +973,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
             data.edge_weight = new_edge_weight.to(torch.float32)
             data.edge_index = new_edge_index
+
+    if args.dataset == 'ogbl-citation2':
+        data.edge_index = to_undirected(edge_index=data.edge_index, num_nodes=data.num_nodes)
 
     if args.use_valedges_as_input:
         print("Adding validation edges to training edges")
