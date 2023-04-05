@@ -687,9 +687,12 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
 
         source, target, target_neg = source[perm], target[perm], target_neg[perm_neg, :]
         pos_edge = torch.stack([source, target])
-        neg_per_target = target_neg.size(1) * neg_ratio
-        neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
-                                target_neg.view(-1)[:len(source.repeat_interleave(neg_per_target))]])
+        # neg_per_target = target_neg.size(1) * neg_ratio
+        # neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
+        #                         target_neg.view(-1)[:len(source.repeat_interleave(neg_per_target))]])
+        neg_edge = local_neg_sample(pos_edges=pos_edge.t(), num_nodes=num_nodes, num_neg=neg_ratio,
+                                    random_src=False).t()
+
     return pos_edge, neg_edge
 
 
@@ -851,3 +854,17 @@ def adjust_lr(optimizer, decay_ratio, lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr_
     return lr_
+
+
+def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False):
+    if random_src:
+        neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(
+            0, 2, (pos_edges.size(0),), dtype=torch.long)]
+    else:
+        neg_src = pos_edges[:, 0]
+    neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
+    neg_src = torch.reshape(neg_src, (-1,))
+    neg_dst = torch.randint(
+        0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
+
+    return torch.stack((neg_src, neg_dst), dim=-1)
