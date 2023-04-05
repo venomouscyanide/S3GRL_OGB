@@ -672,26 +672,30 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
         if split == 'train':
-            target_neg = torch.randint(0, num_nodes, [target.size(0) * neg_ratio, 1],
-                                       dtype=torch.long)
+            presampled = False
         else:
+            presampled = True
             target_neg = split_edge[split]['target_node_neg']
-        # subsample
-        num_source = source.size(0)
-        perm = np.random.permutation(num_source)
-        perm = perm[:int(percent / 100 * num_source)]
 
-        num_neg = target_neg.size(0)
-        perm_neg = np.random.permutation(num_neg)
-        perm_neg = perm_neg[:int(percent / 100 * num_neg)]
+        if presampled:
+            num_source = source.size(0)
+            perm = np.random.permutation(num_source)
+            perm = perm[:int(percent / 100 * num_source)]
+            source, target, target_neg = source[perm], target[perm], target_neg[perm, :]
+            pos_edge = torch.stack([source, target])
+            neg_per_target = target_neg.size(1)
+            neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
+                                    target_neg.view(-1)])
+        else:
+            num_source = source.size(0)
+            perm = np.random.permutation(num_source)
+            perm = perm[:int(percent / 100 * num_source)]
 
-        source, target, target_neg = source[perm], target[perm], target_neg[perm_neg, :]
-        pos_edge = torch.stack([source, target])
-        # neg_per_target = target_neg.size(1) * neg_ratio
-        # neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
-        #                         target_neg.view(-1)[:len(source.repeat_interleave(neg_per_target))]])
-        neg_edge = local_neg_sample(pos_edges=pos_edge.t(), num_nodes=num_nodes, num_neg=neg_ratio,
-                                    random_src=False).t()
+            source, target = source[perm], target[perm]
+            pos_edge = torch.stack([source, target])
+
+            neg_edge = local_neg_sample(pos_edges=pos_edge.t(), num_nodes=num_nodes, num_neg=neg_ratio,
+                                        random_src=False).t()
 
     return pos_edge, neg_edge
 
