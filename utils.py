@@ -672,19 +672,31 @@ def get_pos_neg_edges(split, split_edge, edge_index, num_nodes, percent=100, neg
         source = split_edge[split]['source_node']
         target = split_edge[split]['target_node']
         if split == 'train':
-            target_neg = torch.randint(0, num_nodes, [target.size(0), 1],
-                                       dtype=torch.long)
+            presampled = False
         else:
+            presampled = True
             target_neg = split_edge[split]['target_node_neg']
-        # subsample
-        num_source = source.size(0)
-        perm = np.random.permutation(num_source)
-        perm = perm[:int(percent / 100 * num_source)]
-        source, target, target_neg = source[perm], target[perm], target_neg[perm, :]
-        pos_edge = torch.stack([source, target])
-        neg_per_target = target_neg.size(1)
-        neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
-                                target_neg.view(-1)])
+
+        if presampled:
+            num_source = source.size(0)
+            perm = np.random.permutation(num_source)
+            perm = perm[:int(percent / 100 * num_source)]
+            source, target, target_neg = source[perm], target[perm], target_neg[perm, :]
+            pos_edge = torch.stack([source, target])
+            neg_per_target = target_neg.size(1)
+            neg_edge = torch.stack([source.repeat_interleave(neg_per_target),
+                                    target_neg.view(-1)])
+        else:
+            num_source = source.size(0)
+            perm = np.random.permutation(num_source)
+            perm = perm[:int(percent / 100 * num_source)]
+
+            source, target = source[perm], target[perm]
+            pos_edge = torch.stack([source, target])
+
+            neg_edge = local_neg_sample(pos_edges=pos_edge.t(), num_nodes=num_nodes, num_neg=neg_ratio,
+                                        random_src=False).t()
+
     return pos_edge, neg_edge
 
 
@@ -826,8 +838,8 @@ def draw_graph(graph):
     f.savefig("input_graph.pdf", bbox_inches='tight')
 
 
-# https://stackoverflow.com/a/45846841/12918863
 def human_format(num):
+    # ref: # https://stackoverflow.com/a/45846841/12918863
     num = float('{:.3g}'.format(num))
     magnitude = 0
     while abs(num) >= 1000:
@@ -846,3 +858,18 @@ def adjust_lr(optimizer, decay_ratio, lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr_
     return lr_
+
+
+def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False):
+    # adapted from: https://github.com/zhitao-wang/PLNLP/blob/master/plnlp/negative_sample.py
+    if random_src:
+        neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(
+            0, 2, (pos_edges.size(0),), dtype=torch.long)]
+    else:
+        neg_src = pos_edges[:, 0]
+    neg_src = torch.reshape(neg_src, (-1, 1)).repeat(1, num_neg)
+    neg_src = torch.reshape(neg_src, (-1,))
+    neg_dst = torch.randint(
+        0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
+
+    return torch.stack((neg_src, neg_dst), dim=-1)
