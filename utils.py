@@ -838,8 +838,8 @@ def draw_graph(graph):
     f.savefig("input_graph.pdf", bbox_inches='tight')
 
 
-# https://stackoverflow.com/a/45846841/12918863
 def human_format(num):
+    # ref: # https://stackoverflow.com/a/45846841/12918863
     num = float('{:.3g}'.format(num))
     magnitude = 0
     while abs(num) >= 1000:
@@ -861,6 +861,7 @@ def adjust_lr(optimizer, decay_ratio, lr):
 
 
 def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False):
+    # adapted from: https://github.com/zhitao-wang/PLNLP/blob/master/plnlp/negative_sample.py
     if random_src:
         neg_src = pos_edges[torch.arange(pos_edges.size(0)), torch.randint(
             0, 2, (pos_edges.size(0),), dtype=torch.long)]
