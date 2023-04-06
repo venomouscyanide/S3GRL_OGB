@@ -467,10 +467,9 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
     model.train()
 
     total_loss = 0
-    pbar = tqdm(train_positive_loader, ncols=70)
-    train_negative_loader = iter(train_negative_loader)
+    pbar = tqdm(list(zip(train_positive_loader, train_negative_loader)), ncols=70)
 
-    for indx, data in enumerate(pbar):
+    for indx, (data, neg_data) in enumerate(pbar):
         pos_data = data.to(device)
         optimizer.zero_grad()
 
@@ -490,18 +489,19 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
             pos_logits = model(pos_num_nodes, pos_data.z, pos_data.edge_index, data.batch, pos_x, pos_edge_weight,
                                pos_node_id)
 
-        neg_data = next(train_negative_loader).to(device)
         neg_x = neg_data.x if args.use_feature else None
         neg_edge_weight = neg_data.edge_weight if args.use_edge_weight else None
         neg_node_id = neg_data.node_id if emb else None
         neg_num_nodes = neg_data.num_nodes
+
         if args.model == 'SIGN':
             if args.sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, args.sign_k + 1)]
+                xs = [neg_data.x.to(device)]
+                xs += [neg_data[f'x{i}'].to(device) for i in range(1, args.sign_k + 1)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                xs = [neg_data[f'x{args.sign_k}'].to(device)]
+            operator_batch_data = [neg_data.batch] + [neg_data[f"x{index}_batch"] for index in
+                                                      range(1, args.sign_k + 1)]
             neg_logits = model(xs, operator_batch_data)
         else:
             neg_logits = model(neg_num_nodes, neg_data.z, neg_data.edge_index, neg_data.batch, neg_x, neg_edge_weight,
@@ -973,9 +973,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
             new_edge_index, new_edge_weight = new_edges[0], new_edges[1]
             data.edge_weight = new_edge_weight.to(torch.float32)
             data.edge_index = new_edge_index
-
-    if args.dataset == 'ogbl-citation2':
-        data.edge_index = to_undirected(edge_index=data.edge_index, num_nodes=data.num_nodes)
 
     if args.use_valedges_as_input:
         print("Adding validation edges to training edges")
