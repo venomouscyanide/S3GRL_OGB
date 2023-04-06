@@ -5,6 +5,7 @@ from scipy.sparse import dok_matrix
 from torch_geometric.data import Data
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.transforms import SIGN
+from torch_geometric.utils import to_undirected
 from torch_sparse import SparseTensor, from_scipy, spspmm
 
 from tqdm import tqdm
@@ -298,7 +299,11 @@ class OptimizedSignOperations:
             u, v, value = ssp.find(csr_subgraph)
             u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
 
-            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
+            edge_index = torch.vstack([u, v])
+            if directed:
+                edge_index, value = to_undirected(edge_index, num_nodes=len(tmp[0]), edge_attr=value)
+            edge_index, value = gcn_norm(edge_index, edge_weight=value.to(torch.float), add_self_loops=True,
+                                         improved=True)
             subgraph_features = tmp[3]
             adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
                                  sparse_sizes=(csr_shape, csr_shape))
