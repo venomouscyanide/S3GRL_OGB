@@ -308,6 +308,8 @@ class OptimizedSignOperations:
             adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
                                  sparse_sizes=(csr_shape, csr_shape))
             subgraph = adj_t
+            from utils import py_g_drnl_node_labeling
+            drnl = py_g_drnl_node_labeling(edge_index, 0, 1, num_nodes=len(tmp[0])).reshape((len(tmp[0]), 1))
 
             assert subgraph_features is not None
             powers_of_a = [subgraph]
@@ -350,7 +352,7 @@ class OptimizedSignOperations:
                 x_b = subgraph_features
                 subg_x = torch.hstack([x_a, x_b])
             elif strat == 'intersection':
-                x_a = torch.tensor([[1]] + [[1]] + [[0]] * (csr_shape - 2))
+                x_a = drnl
                 x_b = subgraph_features
                 subg_x = torch.hstack([x_a, x_b])
             else:
