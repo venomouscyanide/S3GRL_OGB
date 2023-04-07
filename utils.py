@@ -482,7 +482,9 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
         elif powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic']:
             # optimized SoP Plus flow
             sop_data_list = OptimizedSignOperations.get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y,
-                                                                            verbose=verbose, ratio_per_hop=ratio_per_hop)
+                                                                            verbose=verbose,
+                                                                            ratio_per_hop=ratio_per_hop,
+                                                                            sign_kwargs=sign_kwargs)
             return sop_data_list
 
         elif powers_of_A and sign_kwargs['optimize_sign'] and not sign_kwargs['k_heuristic']:

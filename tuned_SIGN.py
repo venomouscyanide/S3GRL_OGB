@@ -51,7 +51,8 @@ class TunedSIGN(SIGN):
 
 class OptimizedSignOperations:
     @staticmethod
-    def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False, ratio_per_hop=1):
+    def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False, ratio_per_hop=1, sign_kwargs=None):
+        # TODO; no support for labeling, no support for >1 sign_k values
         # print("SoP Plus Optimized Flow.")
         # optimized SoP Plus flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
         if len(powers_of_A) > 1:
@@ -83,14 +84,22 @@ class OptimizedSignOperations:
 
             interim_src_tensor = torch.tensor(interim_src.todense(), dtype=torch.bool)[0]
             interim_dst_tensor = torch.tensor(interim_dst.todense(), dtype=torch.bool)[0]
-            interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
-            intersection_indices = (interim == True).nonzero(as_tuple=True)[0].tolist()
+
+            strat = sign_kwargs['k_node_set_strategy']
+            if strat == "intersection":
+                interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
+            elif strat == "union":
+                interim = torch.logical_or(interim_src_tensor, interim_dst_tensor)
+            else:
+                raise NotImplementedError(f"Strat {strat} not implemented")
+
+            strat_indices = (interim == True).nonzero(as_tuple=True)[0].tolist()
             if ratio_per_hop != 1:
-                intersection_indices = random.sample(intersection_indices,
-                                                     int(ratio_per_hop * len(intersection_indices)))
+                strat_indices = random.sample(strat_indices,
+                                              int(ratio_per_hop * len(strat_indices)))
 
             # cn = power_of_a[intersection_indices]
-            all_indices = intersection_indices + [src, dst]
+            all_indices = strat_indices + [src, dst]
             subgraph = lil_matrix[all_indices]
             all_subgraphs.append(subgraph)
             start_index.append(start)
