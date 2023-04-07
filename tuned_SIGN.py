@@ -53,7 +53,7 @@ class OptimizedSignOperations:
     @staticmethod
     def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False, ratio_per_hop=1):
         # print("SoP Plus Optimized Flow.")
-        # optimized SoP flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
+        # optimized SoP Plus flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
         if len(powers_of_A) > 1:
             raise NotImplementedError
 
