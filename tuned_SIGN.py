@@ -1,14 +1,18 @@
+import random
+
 import torch
 from scipy.sparse import dok_matrix
 from torch_geometric.data import Data
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.transforms import SIGN
 from torch_sparse import SparseTensor, from_scipy, spspmm
-import torch.nn.functional as F
+
 from tqdm import tqdm
 
 import scipy.sparse as ssp
 import numpy as np
+
+from scipy.sparse import vstack
 
 
 class TunedSIGN(SIGN):
@@ -46,6 +50,85 @@ class TunedSIGN(SIGN):
 
 
 class OptimizedSignOperations:
+    @staticmethod
+    def get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False, ratio_per_hop=1, sign_kwargs=None):
+        # TODO; no support for labeling, no support for >1 sign_k values
+        # print("SoP Plus Optimized Flow.")
+        # optimized SoP Plus flow, everything is created on the CPU, then in train() sent to GPU on a batch basis
+        if len(powers_of_A) > 1:
+            raise NotImplementedError
+
+        list_of_training_edges = link_index.t().tolist()
+        num_training_egs = len(list_of_training_edges)
+
+        all_data = []
+        power_of_a = powers_of_A[0]
+
+        xs = []
+        ys = []
+        start_index = []
+        end_index = []
+        all_subgraphs = []
+        start = 0
+
+        if verbose:
+            print("Stacking all links' rows")
+        lil_matrix = power_of_a.to_scipy().tolil()
+
+        for link_number in tqdm(range(0, num_training_egs * 2, 2), disable=not verbose, ncols=70):
+            src, dst = list_of_training_edges[int(link_number / 2)]
+            interim_src = lil_matrix[src]
+            interim_src[0, dst] = 0
+            interim_dst = lil_matrix[dst]
+            interim_dst[0, src] = 0
+
+            interim_src_tensor = torch.tensor(interim_src.todense(), dtype=torch.bool)[0]
+            interim_dst_tensor = torch.tensor(interim_dst.todense(), dtype=torch.bool)[0]
+
+            strat = sign_kwargs['k_node_set_strategy']
+            if strat == "intersection":
+                interim = torch.logical_and(interim_src_tensor, interim_dst_tensor)
+            elif strat == "union":
+                interim = torch.logical_or(interim_src_tensor, interim_dst_tensor)
+            else:
+                raise NotImplementedError(f"Strat {strat} not implemented")
+
+            strat_indices = (interim == True).nonzero(as_tuple=True)[0].tolist()
+            if ratio_per_hop != 1:
+                strat_indices = random.sample(strat_indices,
+                                              int(ratio_per_hop * len(strat_indices)))
+
+            # cn = power_of_a[intersection_indices]
+            all_indices = strat_indices + [src, dst]
+            subgraph = lil_matrix[all_indices]
+            all_subgraphs.append(subgraph)
+            start_index.append(start)
+            next = start + len(all_indices)
+            end_index.append(next - 1)
+            start = next
+
+            xs.append(x[[all_indices]])
+            ys.append(y)
+        if verbose:
+            print("Vstacking individual links")
+        all_subgraphs = vstack(all_subgraphs)
+        if verbose:
+            print("Multiplying in one-shot")
+        x1 = all_subgraphs @ x
+
+        x1 = torch.from_numpy(x1)
+        if verbose:
+            print("Finishing with Data object creation")
+
+        for link_number in tqdm(range(0, num_training_egs), disable=not verbose, ncols=70):
+            data = Data(
+                x=xs[link_number], y=ys[link_number],
+            )
+            setattr(data, f"x1", x1[start_index[link_number]: end_index[link_number] + 1])
+            all_data.append(data)
+
+        return all_data
+
     @staticmethod
     def get_SoP_prepped_ds(powers_of_A, link_index, A, x, y, verbose=False):
         # print("SoP Optimized Flow.")

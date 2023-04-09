@@ -169,7 +169,8 @@ class SEALDataset(InMemoryDataset):
                                              add_self_loops=True)
                 adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
                                      sparse_sizes=(num_nodes, num_nodes))
-
+                if self.directed:
+                    adj_t = adj_t.to_symmetric()
                 print("Begin taking powers of A")
                 powers_of_A = [adj_t]
                 for _ in tqdm(range(2, self.args.sign_k + 1), ncols=70):
@@ -321,6 +322,8 @@ class SEALDynamicDataset(Dataset):
                                              add_self_loops=True)
                 adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
                                      sparse_sizes=(num_nodes, num_nodes))
+                if self.directed:
+                    adj_t = adj_t.to_symmetric()
 
                 print("Begin taking powers of A")
                 self.powers_of_A = [adj_t]
