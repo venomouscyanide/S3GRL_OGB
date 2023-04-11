@@ -241,11 +241,16 @@ class OptimizedSignOperations:
                                  directed=directed, A_csc=A_csc, rw_kwargs=rw_kwargs)
             csr_subgraph = tmp[1]
             csr_shape = csr_subgraph.shape[0]
+            num_nodes = len(tmp[0])
 
             u, v, value = ssp.find(csr_subgraph)
             u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
 
-            edge_index, value = gcn_norm(torch.vstack([u, v]), edge_weight=value.to(torch.float), add_self_loops=True)
+            edge_index = torch.vstack([u, v])
+            if directed:
+                edge_index, value = to_undirected(edge_index, num_nodes=num_nodes, edge_attr=value)
+            edge_index, value = gcn_norm(edge_index, edge_weight=value.to(torch.float), add_self_loops=True)
+
             subgraph_features = tmp[3]
             adj_t = SparseTensor(row=edge_index[0], col=edge_index[-1], value=value,
                                  sparse_sizes=(csr_shape, csr_shape))
@@ -253,7 +258,7 @@ class OptimizedSignOperations:
 
             from utils import py_g_drnl_node_labeling
             if node_label == 'drnl':
-                label = py_g_drnl_node_labeling(edge_index, 0, 1, num_nodes=len(tmp[0])).reshape((len(tmp[0]), 1))
+                label = py_g_drnl_node_labeling(edge_index, 0, 1, num_nodes=num_nodes).reshape((num_nodes, 1))
             elif node_label == 'zo':
                 label = torch.tensor([[1]] + [[1]] + [[0]] * (csr_shape - 2))
             else:
@@ -306,10 +311,11 @@ class OptimizedSignOperations:
 
             u, v, value = ssp.find(csr_subgraph)
             u, v, value = torch.LongTensor(u), torch.LongTensor(v), torch.LongTensor(value)
+            num_nodes = len(tmp[0])
 
             edge_index = torch.vstack([u, v])
             if directed:
-                edge_index, value = to_undirected(edge_index, num_nodes=len(tmp[0]), edge_attr=value)
+                edge_index, value = to_undirected(edge_index, num_nodes=num_nodes, edge_attr=value)
             edge_index, value = gcn_norm(edge_index, edge_weight=value.to(torch.float), add_self_loops=True,
                                          improved=True)
             subgraph_features = tmp[3]
@@ -318,7 +324,7 @@ class OptimizedSignOperations:
             subgraph = adj_t
             from utils import py_g_drnl_node_labeling
             if node_label == 'drnl':
-                label = py_g_drnl_node_labeling(edge_index, 0, 1, num_nodes=len(tmp[0])).reshape((len(tmp[0]), 1))
+                label = py_g_drnl_node_labeling(edge_index, 0, 1, num_nodes=num_nodes).reshape((num_nodes, 1))
             elif node_label == 'zo':
                 label = torch.tensor([[1]] + [[1]] + [[0]] * (csr_shape - 2))
             else:
