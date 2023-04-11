@@ -194,7 +194,7 @@ def sgrl_master_controller(config, results_json):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='configs/cora_cite_comparison_5_runs.json')
+    parser.add_argument('--config', type=str, default='configs/ogbl/ogbl_citation2.json')
     parser.add_argument('--results_json', type=str, default='result.json')
 
     args = parser.parse_args()

@@ -36,7 +36,7 @@
         "runs": 1,
         "train_percent": 2,
         "val_percent": 1,
-        "test_percent": 100,
+        "test_percent": 1,
         "dynamic_train": true,
         "dynamic_val": true,
         "dynamic_test": true,
