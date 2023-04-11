@@ -41,7 +41,7 @@ from scipy.sparse import SparseEfficiencyWarning
 
 from custom_losses import auc_loss, hinge_auc_loss
 from data_utils import read_label, read_edges
-from models import SAGE, DGCNN, GCN, GIN, SIGNNet
+from models import SAGE, DGCNN, GCN, GIN, S3GRLLight, S3GRLHeavy
 from n2v_prep import node_2_vec_pretrain
 
 from profiler_utils import profile_helper
@@ -1379,11 +1379,20 @@ def run_sgrl_learning(args, device, hypertuning=False):
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
-                            args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
-                            dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+            if args.dataset == 'ogbl-citation2':
+                print("S3GRLHeavy selected")
+                model = S3GRLHeavy(args.hidden_channels, sign_k, train_dataset,
+                                   args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
+                                   dropout=args.dropout, k_heuristic=args.k_heuristic,
+                                   k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
 
+            else:
+                print("S3GRLLight selected")
+                model = S3GRLLight(args.hidden_channels, sign_k, train_dataset,
+                                   args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
+                                   dropout=args.dropout, k_heuristic=args.k_heuristic,
+                                   k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+        print(f"Model architecture is: {model}")
         parameters = list(model.parameters())
         if args.train_node_embedding:
             torch.nn.init.xavier_uniform_(emb.weight)

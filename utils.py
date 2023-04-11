@@ -462,7 +462,8 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             print("Prepping PoS (plus) data")
             sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
-                                                                       sign_kwargs, rw_kwargs, verbose=verbose)
+                                                                       sign_kwargs, rw_kwargs, verbose=verbose,
+                                                                       node_label=node_label)
             if sign_k == 1:
                 return sup_data_list
 
@@ -497,13 +498,15 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             # optimized PoS flow
             sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                        max_nodes_per_hop, directed, A_csc, x, y,
-                                                                       sign_kwargs, rw_kwargs, verbose=verbose)
+                                                                       sign_kwargs, rw_kwargs, verbose=verbose,
+                                                                       node_label=node_label)
             return sup_data_list
         elif not powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic']:
             # optimized PoS Plus flow
             sup_data_list = OptimizedSignOperations.get_PoS_Plus_prepped_ds(link_index, num_hops, A, ratio_per_hop,
                                                                             max_nodes_per_hop, directed, A_csc, x, y,
-                                                                            sign_kwargs, rw_kwargs, verbose=verbose)
+                                                                            sign_kwargs, rw_kwargs, verbose=verbose,
+                                                                            node_label=node_label)
             return sup_data_list
         elif not sign_kwargs['optimize_sign']:
             # SIGN + SEAL flow; includes both PoS and SoP flows
