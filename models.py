@@ -409,7 +409,7 @@ class S3GRLHeavy(S3GRLLight):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
                  pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=True):
         # Extra wide and deep version of S3GRL. only used for citation2 for now.
-        super(S3GRLLight).__init__(hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None,
+        super().__init__(hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None,
                                    dropout=0.5,
                                    pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=True)
 
