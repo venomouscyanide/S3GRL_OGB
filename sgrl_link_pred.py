@@ -11,7 +11,6 @@ import os
 import sys
 import os.path as osp
 from shutil import copy
-import copy as cp
 
 from gtrick.pyg import ResourceAllocation, AdamicAdar, AnchorDistance, CommonNeighbors
 from ray import tune
@@ -22,7 +21,6 @@ from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.profile import profileit, timeit
 from torch_geometric.transforms import NormalizeFeatures, OneHotDegree
 from tqdm import tqdm
-import pdb
 
 from sklearn.metrics import roc_auc_score, average_precision_score
 import scipy.sparse as ssp
@@ -1410,59 +1408,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 print(f'SortPooling k is set to {model.k}', file=f)
 
         start_epoch = 1
-        if args.continue_from is not None:
-            model.load_state_dict(
-                torch.load(os.path.join(args.res_dir,
-                                        'run{}_model_checkpoint{}.pth'.format(run + 1, args.continue_from)))
-            )
-            optimizer.load_state_dict(
-                torch.load(os.path.join(args.res_dir,
-                                        'run{}_optimizer_checkpoint{}.pth'.format(run + 1, args.continue_from)))
-            )
-            start_epoch = args.continue_from + 1
-            args.epochs -= args.continue_from
-
-        if args.only_test:
-            results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args)
-            for key, result in results.items():
-                loggers[key].add_result(run, result)
-            for key, result in results.items():
-                valid_res, test_res = result
-                print(key)
-                print(f'Run: {run + 1:02d}, '
-                      f'Valid: {100 * valid_res:.2f}%, '
-                      f'Test: {100 * test_res:.2f}%')
-            pdb.set_trace()
-            exit()
-
-        if args.test_multiple_models:
-            model_paths = [
-            ]  # enter all your pretrained .pth model paths here
-            models = []
-            for path in model_paths:
-                m = cp.deepcopy(model)
-                m.load_state_dict(torch.load(path))
-                models.append(m)
-            Results = test_multiple_models(models, val_loader, device, emb, test_loader, evaluator, args)
-            for i, path in enumerate(model_paths):
-                print(path)
-                with open(log_file, 'a') as f:
-                    print(path, file=f)
-                results = Results[i]
-                for key, result in results.items():
-                    loggers[key].add_result(run, result)
-                for key, result in results.items():
-                    valid_res, test_res = result
-                    to_print = (f'Run: {run + 1:02d}, ' +
-                                f'Valid: {100 * valid_res:.2f}%, ' +
-                                f'Test: {100 * test_res:.2f}%')
-                    print(key)
-                    print(to_print)
-                    with open(log_file, 'a') as f:
-                        print(key, file=f)
-                        print(to_print, file=f)
-            pdb.set_trace()
-            exit()
+        if args.continue_from is not None or args.only_test or args.test_multiple_models:
+            raise NotImplementedError("args continue_from/only_test/test_multiple_models are legacy and not supported.")
 
         # Training starts
         all_stats = []
@@ -1530,6 +1477,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         print(key)
                         picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
                         print(f'Picked Valid: {picked_val:.2f}, Picked Test: {picked_test:.2f}')
+            else:
+                print(f"Eval on validation and test is skipped. Completed epochs: {epoch}.")
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers
