@@ -298,7 +298,7 @@ class GIN(torch.nn.Module):
         return x
 
 
-class SIGNNet(torch.nn.Module):
+class S3GRLLight(torch.nn.Module):
     def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
                  pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=False):
         super().__init__()
@@ -403,3 +403,115 @@ class SIGNNet(torch.nn.Module):
         self._uniform_norm()
         self.operator_diff.reset_parameters()
         self.link_pred_mlp.reset_parameters()
+
+
+class S3GRLHeavy(torch.nn.Module):
+    def __init__(self, hidden_channels, num_layers, train_dataset, use_feature=False, node_embedding=None, dropout=0.5,
+                 pool_operatorwise=False, k_heuristic=0, k_pool_strategy="", use_mlp=True):
+        # Extra wide and deep version of S3GRL. only used for citation2 for now.
+
+        super().__init__()
+        self.use_feature = use_feature
+        self.node_embedding = node_embedding
+
+        self.dropout = dropout
+        self.pool_operatorwise = pool_operatorwise  # pool at the operator level, esp. useful for SoP
+        self.k_heuristic = k_heuristic  # k-heuristic in k-heuristic PoS Plus
+        self.k_pool_strategy = k_pool_strategy  # k-heuristic pool strat
+        self.hidden_channels = hidden_channels
+        initial_channels = hidden_channels
+
+        initial_channels += train_dataset.num_features - hidden_channels
+        if self.node_embedding is not None:
+            initial_channels += node_embedding.embedding_dim
+
+        if not use_mlp:
+            # note; operator_diff MLP is just a linear layer that corresponds to a weight matrix, W
+            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels]
+            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
+                                     plain_last=False)
+        else:
+            mlp_layers = [initial_channels * (num_layers + 1), hidden_channels, hidden_channels]
+            self.operator_diff = MLP(mlp_layers, dropout=dropout, batch_norm=True, act_first=True, act='relu',
+                                     plain_last=True)
+
+        if not self.k_heuristic:
+            self.link_pred_mlp = MLP(
+                [hidden_channels, hidden_channels * 2, hidden_channels, hidden_channels, 1],
+                dropout=dropout, batch_norm=True, act_first=True, act='elu')
+        else:
+            if self.k_pool_strategy == "mean":
+                channels = 2
+            elif self.k_pool_strategy == "sum":
+                channels = 2
+            elif self.k_pool_strategy == "max":
+                channels = 2
+            elif self.k_pool_strategy == "concat":
+                channels = 1 + self.k_heuristic
+            else:
+                raise NotImplementedError(f"Check pool strat: {self.k_pool_strategy}")
+            self.link_pred_mlp = MLP(
+                [hidden_channels * channels, hidden_channels * 2, hidden_channels, hidden_channels, 1],
+                dropout=dropout,
+                batch_norm=True,
+                act_first=True, act='elu')
+        self._uniform_norm()
+
+    def _uniform_norm(self):
+        for lin in self.link_pred_mlp.lins:
+            torch.nn.init.xavier_uniform_(lin.weight.data)
+            lin.bias.data.fill_(0.0)
+
+        for lin in self.operator_diff.lins:
+            torch.nn.init.xavier_uniform_(lin.weight.data)
+            lin.bias.data.fill_(0.0)
+
+    def forward(self, xs, batch):
+        x = torch.cat(xs, dim=-1)
+        x = self.operator_diff(x)
+
+        x = self._centre_pool_helper(batch, x, -1)
+
+        x = self.link_pred_mlp(x)
+        return x
+
+    def reset_parameters(self):
+        self._uniform_norm()
+        self.operator_diff.reset_parameters()
+        self.link_pred_mlp.reset_parameters()
+
+    def _centre_pool_helper(self, batch, h, op_index):
+        # center pooling
+        uq, center_indices = np.unique(batch[op_index].cpu().numpy(), return_index=True)
+        if not self.k_heuristic:
+            # batch_size X hidden_dim
+            h_src = h[center_indices]
+            h_dst = h[center_indices + 1]
+            h = (h_src * h_dst)
+        else:
+            h_src = h[center_indices]
+            h_dst = h[center_indices + 1]
+            h_a = h_src * h_dst
+
+            mask = torch.ones(size=(batch[op_index].size()), dtype=torch.bool)
+            mask[center_indices] = False
+            mask[center_indices + 1] = False
+            trimmed_batch = batch[op_index][mask]
+
+            if self.k_pool_strategy == 'max':
+                h_k_max = global_max_pool(h[mask], trimmed_batch, size=uq.shape[0])
+                h = torch.concat([h_a, h_k_max], dim=-1)
+            elif self.k_pool_strategy == 'mean':
+                h_k_mean = global_mean_pool(h[mask], trimmed_batch, size=uq.shape[0])
+                h = torch.concat([h_a, h_k_mean], dim=-1)
+            elif self.k_pool_strategy == 'sum':
+                h_k_sum = global_add_pool(h[mask], trimmed_batch, size=uq.shape[0])
+                h = torch.concat([h_a, h_k_sum], dim=-1)
+            elif self.k_pool_strategy == 'concat':
+                raise NotImplementedError("Concat pool strat is not supported.")
+                h_k = h[mask].reshape(shape=(
+                    center_indices.shape[0], self.hidden_channels * self.k_heuristic)
+                )
+                h = torch.concat([h_a, h_k], dim=-1)
+
+        return h

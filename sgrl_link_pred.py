@@ -11,7 +11,6 @@ import os
 import sys
 import os.path as osp
 from shutil import copy
-import copy as cp
 
 from gtrick.pyg import ResourceAllocation, AdamicAdar, AnchorDistance, CommonNeighbors
 from ray import tune
@@ -22,7 +21,6 @@ from torch_geometric.nn.conv.gcn_conv import gcn_norm
 from torch_geometric.profile import profileit, timeit
 from torch_geometric.transforms import NormalizeFeatures, OneHotDegree
 from tqdm import tqdm
-import pdb
 
 from sklearn.metrics import roc_auc_score, average_precision_score
 import scipy.sparse as ssp
@@ -41,7 +39,7 @@ from scipy.sparse import SparseEfficiencyWarning
 
 from custom_losses import auc_loss, hinge_auc_loss
 from data_utils import read_label, read_edges
-from models import SAGE, DGCNN, GCN, GIN, SIGNNet
+from models import SAGE, DGCNN, GCN, GIN, S3GRLLight, S3GRLHeavy
 from n2v_prep import node_2_vec_pretrain
 
 from profiler_utils import profile_helper
@@ -467,10 +465,9 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
     model.train()
 
     total_loss = 0
-    pbar = tqdm(train_positive_loader, ncols=70)
-    train_negative_loader = iter(train_negative_loader)
+    pbar = tqdm(list(zip(train_positive_loader, train_negative_loader)), ncols=70)
 
-    for indx, data in enumerate(pbar):
+    for indx, (data, neg_data) in enumerate(pbar):
         pos_data = data.to(device)
         optimizer.zero_grad()
 
@@ -490,18 +487,19 @@ def train_pairwise(model, train_positive_loader, train_negative_loader, optimize
             pos_logits = model(pos_num_nodes, pos_data.z, pos_data.edge_index, data.batch, pos_x, pos_edge_weight,
                                pos_node_id)
 
-        neg_data = next(train_negative_loader).to(device)
         neg_x = neg_data.x if args.use_feature else None
         neg_edge_weight = neg_data.edge_weight if args.use_edge_weight else None
         neg_node_id = neg_data.node_id if emb else None
         neg_num_nodes = neg_data.num_nodes
+
         if args.model == 'SIGN':
             if args.sign_k != -1:
-                xs = [data.x.to(device)]
-                xs += [data[f'x{i}'].to(device) for i in range(1, args.sign_k + 1)]
+                xs = [neg_data.x.to(device)]
+                xs += [neg_data[f'x{i}'].to(device) for i in range(1, args.sign_k + 1)]
             else:
-                xs = [data[f'x{args.sign_k}'].to(device)]
-            operator_batch_data = [data.batch] + [data[f"x{index}_batch"] for index in range(1, args.sign_k + 1)]
+                xs = [neg_data[f'x{args.sign_k}'].to(device)]
+            operator_batch_data = [neg_data.batch] + [neg_data[f"x{index}_batch"] for index in
+                                                      range(1, args.sign_k + 1)]
             neg_logits = model(xs, operator_batch_data)
         else:
             neg_logits = model(neg_num_nodes, neg_data.z, neg_data.edge_index, neg_data.batch, neg_x, neg_edge_weight,
@@ -824,15 +822,6 @@ def run_sgrl_learning(args, device, hypertuning=False):
         if args.dataset == 'ogbl-ppa':
             dataset.data.x = dataset.data.x.type(torch.FloatTensor)
         data = dataset[0]
-
-    elif args.dataset.startswith('ogbl-vessel'):
-        dataset = PygLinkPropPredDataset(name=args.dataset)
-        split_edge = dataset.get_edge_split()
-        data = dataset[0]
-        # normalize node features
-        data.x[:, 0] = torch.nn.functional.normalize(data.x[:, 0], dim=0)
-        data.x[:, 1] = torch.nn.functional.normalize(data.x[:, 1], dim=0)
-        data.x[:, 2] = torch.nn.functional.normalize(data.x[:, 2], dim=0)
 
     elif args.dataset.startswith('attributed'):
         dataset_name = args.dataset.split('-')[-1]
@@ -1388,11 +1377,20 @@ def run_sgrl_learning(args, device, hypertuning=False):
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * 2 - 1
-            model = SIGNNet(args.hidden_channels, sign_k, train_dataset,
-                            args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
-                            dropout=args.dropout, k_heuristic=args.k_heuristic,
-                            k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+            if args.dataset == 'ogbl-citation2':
+                print("S3GRLHeavy selected")
+                model = S3GRLHeavy(args.hidden_channels, sign_k, train_dataset,
+                                   args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
+                                   dropout=args.dropout, k_heuristic=args.k_heuristic,
+                                   k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
 
+            else:
+                print("S3GRLLight selected")
+                model = S3GRLLight(args.hidden_channels, sign_k, train_dataset,
+                                   args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
+                                   dropout=args.dropout, k_heuristic=args.k_heuristic,
+                                   k_pool_strategy=args.k_pool_strategy, use_mlp=args.use_mlp).to(device)
+        print(f"Model architecture is: {model}")
         parameters = list(model.parameters())
         if args.train_node_embedding:
             torch.nn.init.xavier_uniform_(emb.weight)
@@ -1410,59 +1408,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
                 print(f'SortPooling k is set to {model.k}', file=f)
 
         start_epoch = 1
-        if args.continue_from is not None:
-            model.load_state_dict(
-                torch.load(os.path.join(args.res_dir,
-                                        'run{}_model_checkpoint{}.pth'.format(run + 1, args.continue_from)))
-            )
-            optimizer.load_state_dict(
-                torch.load(os.path.join(args.res_dir,
-                                        'run{}_optimizer_checkpoint{}.pth'.format(run + 1, args.continue_from)))
-            )
-            start_epoch = args.continue_from + 1
-            args.epochs -= args.continue_from
-
-        if args.only_test:
-            results, time_for_inference = test(evaluator, model, val_loader, device, emb, test_loader, args)
-            for key, result in results.items():
-                loggers[key].add_result(run, result)
-            for key, result in results.items():
-                valid_res, test_res = result
-                print(key)
-                print(f'Run: {run + 1:02d}, '
-                      f'Valid: {100 * valid_res:.2f}%, '
-                      f'Test: {100 * test_res:.2f}%')
-            pdb.set_trace()
-            exit()
-
-        if args.test_multiple_models:
-            model_paths = [
-            ]  # enter all your pretrained .pth model paths here
-            models = []
-            for path in model_paths:
-                m = cp.deepcopy(model)
-                m.load_state_dict(torch.load(path))
-                models.append(m)
-            Results = test_multiple_models(models, val_loader, device, emb, test_loader, evaluator, args)
-            for i, path in enumerate(model_paths):
-                print(path)
-                with open(log_file, 'a') as f:
-                    print(path, file=f)
-                results = Results[i]
-                for key, result in results.items():
-                    loggers[key].add_result(run, result)
-                for key, result in results.items():
-                    valid_res, test_res = result
-                    to_print = (f'Run: {run + 1:02d}, ' +
-                                f'Valid: {100 * valid_res:.2f}%, ' +
-                                f'Test: {100 * test_res:.2f}%')
-                    print(key)
-                    print(to_print)
-                    with open(log_file, 'a') as f:
-                        print(key, file=f)
-                        print(to_print, file=f)
-            pdb.set_trace()
-            exit()
+        if args.continue_from is not None or args.only_test or args.test_multiple_models:
+            raise NotImplementedError("args continue_from/only_test/test_multiple_models are legacy and not supported.")
 
         # Training starts
         all_stats = []
@@ -1530,6 +1477,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
                         print(key)
                         picked_val, picked_test = loggers[key].print_best_picked(run, f=f)
                         print(f'Picked Valid: {picked_val:.2f}, Picked Test: {picked_test:.2f}')
+            else:
+                print(f"Eval on validation and test is skipped. Completed epochs: {epoch}.")
             if epoch == 1 and args.dynamic_train and args.cache_dynamic:
                 train_loader.dataset.set_use_cache(True, id="train")
                 train_loader.num_workers = args.num_workers
