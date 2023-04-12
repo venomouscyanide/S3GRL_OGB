@@ -1,8 +1,10 @@
-S3GRL (Scalable Simplified Subgraph Representation Learning)
+S3GRL-OGB (Scalable Simplified Subgraph Representation Learning)
 ===============================================================================
 S3GRL (Scalable Simplified Subgraph Representation Learning) is a subgraph representation learning (SGRL) framework aimed at faster link prediction. S3GRL introduces subgraph sampling and subgraph diffusion operator pairs that allow for fast precomputation leading to faster runtimes.
 
-## S3GRL architecture
+N.B: This repository holds the codes required for extending https://github.com/venomouscyanide/S3GRL for the OGB datasets. The original repository for S3GRL (and the first version of the paper) does not support running on the OGB datasets.
+
+## S3GRL architecture in brief
 <img width="1260" alt="Screenshot 2023-01-28 at 3 19 09 PM" src="https://user-images.githubusercontent.com/14299839/215289015-e437d5d5-9df7-48b4-842a-932d4a0c7fc2.png">
 
 Our S3GRL framework: In the preprocessing phase (shown by the shaded blue arrow), first multiple subgraphs are extracted around the target nodes $u$ and $v$ (shaded in blue) by various sampling strategies.  Diffusion matrices are then created from extracted subgraph adjacency matrices by predefined diffusion operators (e.g., powers of subgraphs in this figure). Each diffusion process involves the application of the subgraph diffusion matrix on its nodal features to create the matrix ![CodeCogsEqn](https://user-images.githubusercontent.com/14299839/215292449-7d2eb4ed-f482-4125-9a4f-6f0a0c7e7367.svg). The operator-level node representations of selected nodes (with a red border in raw data) are then aggregated for all subgraphs to form the joint ![CodeCogsEqn(4)](https://user-images.githubusercontent.com/14299839/215292690-ea451ed5-07a8-4b1c-b43a-40a868f23e3c.svg) matrix. The selected nodes in this example are the target nodes ![CodeCogsEqn(1)](https://user-images.githubusercontent.com/14299839/215292532-dd63afe8-5d7f-46bf-9a1e-a60894d4a7d6.svg)
@@ -10,15 +12,27 @@ Our S3GRL framework: In the preprocessing phase (shown by the shaded blue arrow)
  is transformed by an MLP to a link probability $P_{uv}$.
 
 
-
-
 A higher quality architecture diagram can be found here: [SG3RL_arch.pdf](https://github.com/venomouscyanide/S3GRL/files/10528180/SG3RL_arch.pdf)
 
 
-## Getting Started
+## Getting Started with the dev environment
 
-All the requirements for getting the dev environment ready is available in `quick_install.sh`.
+Some notable libraries and their versions are as follows:
+- pytorch=1.13.0
+- scikit-learn==1.1.3
+- scipy==1.9.3
+- torch-cluster==1.6.0
+- torch-geometric==2.1.0.post1
+- torch-scatter==2.0.9
+- torch-sparse==0.6.13
+- ogb==1.3.5 (started out with 1.3.5 but we switched to 1.3.6 release during development)
 
+
+Users can refer to the exact conda enviroment used for running all the experiments in https://github.com/venomouscyanide/S3GRL_OGB/blob/main/conda_env/s3grl_env.yml. If you have trouble setting up please raise an issue or reach out via email and we will be happy to assist. Also, if you have an M1-mac silicon please checkout https://github.com/venomouscyanide/S3GRL_OGB/blob/main/quick_install.sh.
+
+## Configuration on which all experiments are run on
+
+For all the experiments, we use an Ubuntu server with 50-80 CPU cores, 11 Gb GTX 1080Ti GPU, 377 GB ram (with 500 Gigs of swap) and 2 Tb ROM.
 
 ## Running our codes
 All our codes can be run by setting a JSON configuration file. Example configuration files can be found in `configs/paper/`. Once you have the configuration JSON file setup, run our codes using `python sgrl_run_manager.py --config your_config_file_here.json --results_json your_result_file.json`. This command produces `your_result_file.json` which contains the efficacy score using the configuration on the dataset the experiments are being run on. 
