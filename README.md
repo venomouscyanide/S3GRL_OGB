@@ -18,7 +18,7 @@ A higher quality architecture diagram can be found here: [SG3RL_arch.pdf](https:
 ## Getting Started with the dev environment
 
 Some notable libraries and their versions are as follows:
-- pytorch=1.13.0
+- pytorch==1.13.0
 - scikit-learn==1.1.3
 - scipy==1.9.3
 - torch-cluster==1.6.0
