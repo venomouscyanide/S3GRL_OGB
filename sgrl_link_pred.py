@@ -52,7 +52,7 @@ warnings.simplefilter('ignore', FutureWarning)
 warnings.simplefilter('ignore', UserWarning)
 
 
-class SEALDataset(InMemoryDataset):
+class SGRLDataset(InMemoryDataset):
     def __init__(self, root, data, split_edge, num_hops, percent=100, split='train',
                  use_coalesce=False, node_label='drnl', ratio_per_hop=1.0,
                  max_nodes_per_hop=None, directed=False, rw_kwargs=None, device='cpu', pairwise=False,
@@ -81,16 +81,16 @@ class SEALDataset(InMemoryDataset):
         self.use_feature = use_feature
         self.sign_type = sign_type
         self.args = args
-        super(SEALDataset, self).__init__(root)
+        super(SGRLDataset, self).__init__(root)
         if not self.rw_kwargs.get('calc_ratio', False):
             self.data, self.slices = torch.load(self.processed_paths[0])
 
     @property
     def processed_file_names(self):
         if self.percent == 100:
-            name = 'SEAL_{}_data'.format(self.split)
+            name = 'SGRL_{}_data'.format(self.split)
         else:
-            name = 'SEAL_{}_data_{}'.format(self.split, self.percent)
+            name = 'SGRL_{}_data_{}'.format(self.split, self.percent)
         name += '.pt'
         return [name]
 
@@ -218,7 +218,7 @@ class SEALDataset(InMemoryDataset):
                 del neg_list
 
 
-class SEALDynamicDataset(Dataset):
+class SGRLDynamicDataset(Dataset):
     def __init__(self, root, data, split_edge, num_hops, percent=100, split='train',
                  use_coalesce=False, node_label='drnl', ratio_per_hop=1.0,
                  max_nodes_per_hop=None, directed=False, rw_kwargs=None, device='cpu', pairwise=False,
@@ -246,7 +246,7 @@ class SEALDynamicDataset(Dataset):
         self.use_feature = use_feature
         self.sign_type = sign_type
         self.args = args
-        super(SEALDynamicDataset, self).__init__(root)
+        super(SGRLDynamicDataset, self).__init__(root)
 
         pos_edge, neg_edge = get_pos_neg_edges(split, self.split_edge,
                                                self.data.edge_index,
@@ -877,7 +877,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             def __len__(self):
                 return 1
 
-        dataset = DummyDataset(root=f'dataset/{args.dataset}/SEALDataset_{args.dataset}')
+        dataset = DummyDataset(root=f'dataset/{args.dataset}/SGRLDataset_{args.dataset}')
         print("Finish reading from file")
     elif args.dataset in ['chameleon', 'crocodile', 'squirrel']:
         path = osp.join('dataset', args.dataset)
@@ -1189,8 +1189,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
         return loggers['AUC'].results[0][0][-1]
 
-    # SEAL.
-    path = dataset.root + '_seal{}'.format(args.data_appendix)
+    # SGRL methods including but not limited to SEAL.
+    path = dataset.root + '_sgrl{}'.format(args.data_appendix)
     use_coalesce = True if args.dataset == 'ogbl-collab' else False
     if not args.dynamic_train and not args.dynamic_val and not args.dynamic_test:
         args.num_workers = 0
@@ -1206,7 +1206,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         print("Setting up Train data")
-        dataset_class = 'SEALDynamicDataset' if args.dynamic_train else 'SEALDataset'
+        dataset_class = 'SGRLDynamicDataset' if args.dynamic_train else 'SGRLDataset'
         if not args.pairwise:
             train_dataset = eval(dataset_class)(
                 path,
@@ -1275,7 +1275,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     if not any([args.train_gae, args.train_mf, args.train_n2v]):
         print("Setting up Val data")
-        dataset_class = 'SEALDynamicDataset' if args.dynamic_val else 'SEALDataset'
+        dataset_class = 'SGRLDynamicDataset' if args.dynamic_val else 'SGRLDataset'
         val_dataset = eval(dataset_class)(
             path,
             data,
@@ -1295,7 +1295,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             args=args,
         )
         print("Setting up Test data")
-        dataset_class = 'SEALDynamicDataset' if args.dynamic_test else 'SEALDataset'
+        dataset_class = 'SGRLDynamicDataset' if args.dynamic_test else 'SGRLDataset'
         test_dataset = eval(dataset_class)(
             path,
             data,
@@ -1554,7 +1554,7 @@ def run_sgrl_with_run_profiling(args, device):
 
 if __name__ == '__main__':
     # Data settings
-    parser = argparse.ArgumentParser(description='OGBL (SEAL)')
+    parser = argparse.ArgumentParser(description='SGRL model run helper')
     parser.add_argument('--dataset', type=str, default='ogbl-collab')
     parser.add_argument('--fast_split', action='store_true',
                         help="for large custom datasets (not OGB), do a fast data split")

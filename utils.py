@@ -348,6 +348,7 @@ def calc_node_edge_ratio(src, dst, num_hops, A, ratio_per_hop,
 def calc_ratio_helper(link_index_pos, link_index_neg, A, x, y, num_hops, node_label='drnl',
                       ratio_per_hop=1.0, max_nodes_per_hop=None,
                       directed=False, A_csc=None, rw_kwargs=None, split='train', dataset_name='', seed=1):
+    # SWEAL/sweal here refers to the development name for ScaLed.
     stats_dict = {}
 
     overall_seal_node_storage = []
@@ -834,7 +835,7 @@ class Logger(object):
             best_test = r[0]
 
             print(f'\n(Precision of 5)Highest Test: {r.mean():.5f} ± {r.std():.5f}\n', file=f)
-            
+
             return best_test
 
 
