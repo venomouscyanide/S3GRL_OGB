@@ -26,6 +26,8 @@ Some notable libraries and their versions are as follows:
 - torch-scatter==2.0.9
 - torch-sparse==0.6.13
 - ogb==1.3.5 (started out with 1.3.5 but we switched to 1.3.6 release during development)
+- networkx==2.8.8
+- ray==2.1.0
 
 
 Users can refer to the exact conda enviroment used for running all the experiments in https://github.com/venomouscyanide/S3GRL_OGB/blob/main/conda_env/s3grl_env.yml. If you have trouble setting up please raise an issue or reach out via email and we will be happy to assist. Also, if you have an M1-mac silicon please checkout https://github.com/venomouscyanide/S3GRL_OGB/blob/main/quick_install.sh.
@@ -35,7 +37,9 @@ Users can refer to the exact conda enviroment used for running all the experimen
 For all the experiments, we use an Ubuntu server with 50-80 CPU cores, 11 Gb GTX 1080Ti GPU, 377 GB ram (with 500 Gigs of swap) and 2 Tb ROM.
 
 ## Running our codes
-All our codes can be run by setting a JSON configuration file. Example configuration files can be found in `configs/paper/`. Once you have the configuration JSON file setup, run our codes using `python sgrl_run_manager.py --config your_config_file_here.json --results_json your_result_file.json`. This command produces `your_result_file.json` which contains the efficacy score using the configuration on the dataset the experiments are being run on. 
+All our codes can be run by setting a JSON configuration file. Example configuration files can be found in `configs/` or [here](https://github.com/venomouscyanide/S3GRL_OGB/blob/main/test_config.json). In this example, we run 10 runs of Cora with random seeds ranging from 1-10, with hidden dimensionality of the model set to 256, batch size 32 etc. with r=3,h=3 of the PoS model. Please see next section for details on each argument.
+
+Once you have the configuration JSON file setup, run our codes using `python sgrl_run_manager.py --config your_config_file_here.json --results_json your_result_file.json`. This command produces `your_result_file.json` which contains the averaged out efficacy score using the configuration on the dataset the experiments are being run on. 
 
 
 ## Arguments supported
@@ -43,24 +47,48 @@ All our codes can be run by setting a JSON configuration file. Example configura
 Currently, our S3GRL framework support two instances, **PoS** and **SoP**. Both instances are available in `tuned_SIGN.py`. You can add your own instances by modifying this file.
 
 Specific arguments related to our framework:
-- `sign_k` - The number of diffusion operators to create (corresponds to r in our paper)
-- `sign_type` - Set the type of S3GRL model. Either PoS or SoP.
+- `sign_k` - The number of diffusion operators to create (corresponds to r in our paper).
+Setting this to a higher value increases the time taken for training/prep.
+
+- `sign_type` - Set the type of S3GRL model. Either PoS, SoP or hybrid.
+PoS is Powers of Subgraphs.
+SoP is Subgraphs of Powers.
+Hybrid is devised as a clever way to create `sign_k` number of operators for each hop in 1 to `num_hops` extractions. For example, if `sign_k` is 3 and `num_hops` is 3, for each hop subgraph, we create 3 operators each, for a total of 9 operators per subgraph. Currently hybrid mode is only used with PoS style learning.
+
 - `optimize_sign` - Choose to use optimized codes for running PoS or SoP. 
+Ideally, always set this to True. Optimized formulations is a way to drop unecessary rows in storage and is aimed at being faster ways of PoS/SoP learning with virtually no loss of generalization.
+
 - `init_features` - Initialize features for non-attributed datasets. Our S3GRL models require initial node features to work. Choose between 'degree', 'eye' or 'n2v'.
+This is mainly aimed at the non-attributed datasets. Unlike SEAL, we do not support learnable node embeddings (e.g., DRNL is a trainable embedding look-up). As a result, the user need to supply the nodes with initial node embeddings for our models. 
+
 - `k_heuristic` - Choose to use `CCN` (center-common-neighbor pooling) for the nodes other than source-target nodes.
+This boolean decides whether the `CCN` pooling is enabled for PoS or SoP. If `k_heuristic` is set to True, we also calculate the pooled values of the common neighbors for making the link prediction. 
+
 - `k_node_set_strategy` - How to choose the nodes for `CCN`. Either intersection or union. Intersection means you choose the common  neighbors. Works when `k_heuristic` is True.
-- `k_pool_strategy` - How to pool the nodes other than source-target in the forward pass for `CCN` (the nodes you select using `k_node_set_strategy`).  Either mean or sum pooling. Works when `k_heuristic` is True.
+
+Even though the name given is common center pooling, you can set it between `union` or `intersection`. I.e., intersection of the neighbors or unions of the neighbors of source-target nodes will be taken. In our paper, we use `CCN` which is synonymous with setting `k_node_set_strategy` to `intersection` (common neighbors is just an intersection of set of connections to source and targets). Users can choose to use 'union' is common-neighbors are not what they have in mind. Also, for this argument to be considered, you need to set `k_heuristic` to True to enable the Plus versions of Pos/SoP.
+
+- `k_pool_strategy` - How to pool the nodes other than source-target in the forward pass for `CCN` (the nodes you select using `k_node_set_strategy`).  Either mean, sum or max pooling. Works when `k_heuristic` is True.
+
+This decides how you want to pool the `union`/`intersection` of source and target node's neighbors. We use PyG mean, max or sum pooling for this. `mean` is usually used.
+
 - `init_representation` - Use an unsupervised model to train the initial features before running S3GRL. Choose between 'GIC', 'ARGVA', 'GAE', 'VGAE'.
+If you want to run an unsupervised model to further refine the initial nodal embeddings before running our models, use this. This is adapted from https://github.com/DaDaCheng/WalkPooling.
+
+Finally, please note that this work is a fork of https://github.com/facebookresearch/SEAL_OGB and carries over some of the original authors' arguments.
 
 ## Supported Datasets
 We support any PyG dataset. However, the below list covers all the datasets we use in our paper's experiments:
 
 1) Planetoid Dataset (Cora, PubMed, CiteSeer) from "Revisiting Semi-Supervised Learning with Graph Embeddings
     <https://arxiv.org/abs/1603.08861>"
+    
 2) SEAL datasets (USAir, Yeast etc. introduced in the original paper) from "Link prediction based on graph neural networks https://arxiv.org/pdf/1802.09691.pdf"
 
+3) The OGB Dataset, for which this repo was mainly written for.
 
-Notably, the OGB dataset support is actively being developed in a private fork.
+For datasets 1 and 2, we recomment running using https://github.com/venomouscyanide/S3GRL_OGB using the reproduction commands.
+
 
 ## Reporting Issues and Improvements
 We currently don't have an issue/PR template. However, if you find an issue in our code please create an issue in GitHub. It would be great if you could give as much information regarding the issue as possible (what command was run, what are the python package versions, providing full stack trace etc.).  
@@ -72,33 +100,37 @@ If you have any further questions, you can reach out to us (the authors) via ema
 
 ## Reproducing the Paper's Tabular data
 
-### Reproducing Table 2
+### Reproducing Table 2, 3 and 5
 
-- All baselines (except SGRL) can be reproduced using `baselines/run_helpers/run_*.py`, where * is the respective
-  baseline script.
-- All SGRL baselines (except WalkPool) can be reproduced
-  using `python sgrl_run_manager.py --config configs/paper/table_2.json`.
-- WalkPool results can be reproduced using `bash run_ssgrl.sh` by running from Software/WalkPooling/bash
-- S3GRL results can be reproduced using `python sgrl_run_manager.py --config configs/paper/auc_s3grl.json`.
+Please checkout https://github.com/venomouscyanide/S3GRL_OGB for reproducing Tables 2, 3 and 5 (Table 5 is just reference as Table 4 in that repo).
 
-### Reproducing Table 3
+### Reproducting Table 4
 
-- WalkPool can be reproduced using `bash run_ssgrl_profile_attr.sh`
-  and `bash run_ssgrl_profile_non.sh` by running from Software/WalkPooling/bash
-- All other S3GRL and SGRL models can be reproduced
-  using `python sgrl_run_manager.py --config configs/paper/profiling_attr.json`
-  and `python sgrl_run_manager.py --config configs/paper/profiling_non.json`
+Table 4 is the primarily reason why this repo exists. I.e, for running PoS Plus on the OGB datasets and Planetoid datasets in the fashion of BUDDY (https://github.com/melifluos/subgraph-sketching). 
 
-### Reproducing Table 4
+For running PoS Plus on the Planetoid datasets under the experimental settings set by Chamberlain et.al please use
 
-- S3GRL models with ScaLed enabled can be reproduced
-  using `python sgrl_run_manager.py --config configs/paper/scaled.json`.
+```
+python sgrl_run_manager.py --configs configs/planetoid/cora_citeseer_pubmed.json 
+```
+
+For running PoS Plus on any of the OGB datasets use the following template command
+
+
+```
+python sgrl_run_manager.py --configs configs/ogbl/ogbl_*.json
+```
+
+Where * is any of the ogb dataset. See the [conf](https://github.com/venomouscyanide/S3GRL_OGB/tree/main/configs/ogbl) folder for all configs. Notable, we have 2 instances for OGB-Vessel. The `ogbl_vessel_signk_3.json` was found to have higher efficacy and is included with the initial configuration `ogbl_vessel.json`, which performs slightly worse in comparison.
 
 ## Acknowledgements
 
 The code for S3GRL is based off a clone of SEAL-OGB by Zhang et al. (https://github.com/facebookresearch/SEAL_OGB) and
-ScaLed by Louis et al. (https://github.com/venomouscyanide/ScaLed). The baseline softwares used are adapted from GIC by
-Mavromatis et al. (https://github.com/cmavro/Graph-InfoClust-GIC) and WalkPool by Pan et
-al. (https://github.com/DaDaCheng/WalkPooling). There are also some baseline model codes taken from OGB
-implementations (https://github.com/snap-stanford/ogb) and other Pytorch Geometric
+ScaLed by Louis et al. (https://github.com/venomouscyanide/ScaLed). 
+The baseline softwares used are adapted from: 
+- GIC by Mavromatis et al. (https://github.com/cmavro/Graph-InfoClust-GIC)
+- WalkPool by Pan et al. (https://github.com/DaDaCheng/WalkPooling). 
+There are also some baseline model codes taken from :
+- OGB implementations (https://github.com/snap-stanford/ogb) 
+- and other Pytorch Geometric
 implementations (https://github.com/pyg-team/pytorch_geometric).
