@@ -1674,14 +1674,8 @@ if __name__ == '__main__':
     if args.model == "SIGN" and not args.init_features and not args.use_feature:
         raise Exception("Need to init features to have SIGN work. (X) cannot be None. Choose bet. I, Deg and n2v.")
 
-    if args.model == "SIGN" and any([args.dynamic_train, args.dynamic_test, args.dynamic_val]):
-        raise Exception("SIGN does not support Dynamic Datasets (yet).")
-
     if args.profile and not torch.cuda.is_available():
         raise Exception("CUDA needs to be enabled to run PyG profiler")
-
-    if args.sign_type == 'hybrid' and not args.optimize_sign:
-        raise Exception(f"Cannot run hybrid mode with optimize_size set to {args.optimize_sign}")
 
     if args.profile:
         run_sgrl_with_run_profiling(args, device)
