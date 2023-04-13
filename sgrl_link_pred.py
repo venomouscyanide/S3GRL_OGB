@@ -159,7 +159,7 @@ class SGRLDataset(InMemoryDataset):
             else:
                 rw_kwargs.update({"sign": True})
 
-            if sign_type == 'SoP' or sign_type == "hybrid":
+            if sign_type == 'SoP':
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
 
@@ -311,7 +311,7 @@ class SGRLDynamicDataset(Dataset):
 
         self.powers_of_A = []
         if self.args.model == 'SIGN':
-            if self.sign_type == 'SoP' or sign_type == "hybrid":
+            if self.sign_type == 'SoP':
 
                 edge_index = self.data.edge_index
                 num_nodes = self.data.num_nodes
@@ -405,7 +405,7 @@ def profile_train(model, train_loader, optimizer, device, emb, train_dataset, ar
         if args.model == 'SIGN':
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
-                sign_k = args.sign_k * 2 - 1
+                sign_k = args.sign_k * args.num_hops
             if sign_k != -1:
                 xs = [data.x.to(device)]
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
@@ -435,7 +435,7 @@ def train_bce(model, train_loader, optimizer, device, emb, train_dataset, args, 
         if args.model == 'SIGN':
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
-                sign_k = args.sign_k * 2 - 1
+                sign_k = args.sign_k * args.num_hops
             if sign_k != -1:
                 xs = [data.x.to(device)]
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
@@ -541,7 +541,7 @@ def test(evaluator, model, val_loader, device, emb, test_loader, args):
         if args.model == 'SIGN':
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
-                sign_k = args.sign_k * 2 - 1
+                sign_k = args.sign_k * args.num_hops
             if sign_k != -1:
                 xs = [data.x.to(device)]
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
@@ -592,7 +592,7 @@ def _get_test_auc_with_prof(args, device, emb, model, test_loader):
         if args.model == 'SIGN':
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
-                sign_k = args.sign_k * 2 - 1
+                sign_k = args.sign_k * args.num_hops
             if sign_k != -1:
                 xs = [data.x.to(device)]
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
@@ -622,7 +622,7 @@ def _get_test_auc(args, device, emb, model, test_loader):
         if args.model == 'SIGN':
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
-                sign_k = args.sign_k * 2 - 1
+                sign_k = args.sign_k * args.num_hops
             if sign_k != -1:
                 xs = [data.x.to(device)]
                 xs += [data[f'x{i}'].to(device) for i in range(1, sign_k + 1)]
@@ -1376,7 +1376,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         elif args.model == "SIGN":
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
-                sign_k = args.sign_k * 2 - 1
+                sign_k = args.sign_k * args.num_hops
             if args.dataset == 'ogbl-citation2':
                 print("S3GRLHeavy selected")
                 model = S3GRLHeavy(args.hidden_channels, sign_k, train_dataset,
@@ -1643,7 +1643,10 @@ if __name__ == '__main__':
 
     parser.add_argument('--sign_k', type=int, default=3)
     parser.add_argument('--sign_type', type=str, default='', required=False, choices=['PoS', 'SoP', 'hybrid'])
+
+    # Do note that pool_operatorwise is outdated and not used. This is passed to the model, but, never consumed.
     parser.add_argument('--pool_operatorwise', action='store_true', default=False, required=False)
+
     parser.add_argument('--optimize_sign', action='store_true', default=False, required=False)
     parser.add_argument('--init_features', type=str, default='',
                         help='Choose to augment node features with either one-hot encoding or their degree values',
@@ -1671,17 +1674,8 @@ if __name__ == '__main__':
     if args.model == "SIGN" and not args.init_features and not args.use_feature:
         raise Exception("Need to init features to have SIGN work. (X) cannot be None. Choose bet. I, Deg and n2v.")
 
-    if args.model == "SIGN" and any([args.dynamic_train, args.dynamic_test, args.dynamic_val]):
-        raise Exception("SIGN does not support Dynamic Datasets (yet).")
-
     if args.profile and not torch.cuda.is_available():
         raise Exception("CUDA needs to be enabled to run PyG profiler")
-
-    if (args.sign_type == 'SoP' or args.sign_type == 'hybrid') and not args.pool_operatorwise:
-        raise Exception(f"Cannot run SoP with pool_operatorwise: {args.pool_operatorwise}")
-
-    if args.sign_type == 'hybrid' and not args.optimize_sign:
-        raise Exception(f"Cannot run hybrid mode with optimize_size set to {args.optimize_sign}")
 
     if args.profile:
         run_sgrl_with_run_profiling(args, device)
