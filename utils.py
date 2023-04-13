@@ -459,7 +459,7 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
             # hybrid is presented as a clever alternative to learning which hop works best.
             sign_k = sign_kwargs['sign_k']
 
-            all_num_hops_data_list = [None for _ in range(sign_k)]
+            all_num_hops_data_list = [None for _ in range(num_hops)]
             for hop in range(1, num_hops + 1, 1):
                 if verbose:
                     print(f"Prepping PoS (plus) data for h={hop}")
