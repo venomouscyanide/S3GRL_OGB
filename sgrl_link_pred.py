@@ -1074,8 +1074,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
         else:
             data.x = extra_feats
         print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
-
-    if args.dataset == 'ogbl-ppa':
+    
+    augment_ppa = False # this did not seem to improve the results for ppa, hence False
+    if args.dataset == 'ogbl-ppa' and augment_ppa:
         # https://github.com/lustoo/OGB_link_prediction
         from aug_helper import resource_allocation
         adj_matrix = ssp.csr_matrix(
@@ -1377,7 +1378,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
             sign_k = args.sign_k
             if args.sign_type == 'hybrid':
                 sign_k = args.sign_k * args.num_hops
-            if args.dataset == 'ogbl-citation2':
+            if args.dataset in ['ogbl-citation2', 'ogbl-ppa']:
                 print("S3GRLHeavy selected")
                 model = S3GRLHeavy(args.hidden_channels, sign_k, train_dataset,
                                    args.use_feature, node_embedding=emb, pool_operatorwise=args.pool_operatorwise,
