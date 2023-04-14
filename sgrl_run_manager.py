@@ -1,4 +1,5 @@
 import argparse
+import gc
 import json
 import pprint
 from timeit import default_timer
@@ -170,6 +171,10 @@ def sgrl_master_controller(config, results_json):
             prep_times.append(total_prep_time)
             total_run_times.append(total_run_time)
             best_test_scores.append(best_test_score)
+
+            # clean-up after each run
+            torch.cuda.empty_cache()
+            gc.collect()
 
         prep_times = np.array(prep_times)
         total_run_times = np.array(total_run_times)
