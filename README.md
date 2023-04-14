@@ -4,6 +4,15 @@ S3GRL (Scalable Simplified Subgraph Representation Learning) is a subgraph repre
 
 N.B: This repository holds the codes required for extending https://github.com/venomouscyanide/S3GRL for the OGB datasets. The original repository for S3GRL (and the first version of the paper) does not support running on the OGB datasets.
 
+## Our Model (PoS Plus model) Results
+
+|          	| ogbl-collab  	| ogbl-ddi     	| ogbl-vessel  	| ogbl-citation2 	| ogbl-ppa 	|
+|----------	|--------------	|--------------	|--------------	|----------------	|----------	|
+|          	| HR@50        	| HR@20        	| roc-auc      	| MRR            	| HR@100   	|
+| PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| *              	| *        	|
+
+
+
 ## S3GRL architecture in brief
 <img width="1260" alt="Screenshot 2023-01-28 at 3 19 09 PM" src="https://user-images.githubusercontent.com/14299839/215289015-e437d5d5-9df7-48b4-842a-932d4a0c7fc2.png">
 
