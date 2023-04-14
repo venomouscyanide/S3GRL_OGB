@@ -12,6 +12,23 @@ N.B: This repository holds the codes required for extending https://github.com/v
 | PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| *              	| *        	|
 
 
+## Citing Us/BibTex
+Please cite our work if you find it useful in any way.
+```
+@misc{https://doi.org/10.48550/arxiv.2301.12562,
+  doi = {10.48550/ARXIV.2301.12562},
+  url = {https://arxiv.org/abs/2301.12562},
+  author = {Louis, Paul and Jacob, Shweta Ann and Salehi-Abari, Amirali},
+  keywords = {Machine Learning (cs.LG), Social and Information Networks (cs.SI), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {Simplifying Subgraph Representation Learning for Scalable Link Prediction},
+  publisher = {arXiv},
+  year = {2023},
+  copyright = {arXiv.org perpetual, non-exclusive license}
+}
+
+```
+
+The PDF of our preprint is available at https://arxiv.org/pdf/2301.12562.pdf
 
 ## S3GRL architecture in brief
 <img width="1260" alt="Screenshot 2023-01-28 at 3 19 09 PM" src="https://user-images.githubusercontent.com/14299839/215289015-e437d5d5-9df7-48b4-842a-932d4a0c7fc2.png">
