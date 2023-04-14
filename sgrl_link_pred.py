@@ -178,7 +178,9 @@ class SGRLDataset(InMemoryDataset):
                     for index in range(len(powers_of_A)):
                         powers_of_A[index] = ssp.csr_matrix(powers_of_A[index].to_dense())
 
-        if self.rw_kwargs.get('calc_ratio', False):
+        if self.rw_kwargs.get('calc_ratio', False) and self.rw_kwargs.get('m'):
+            # helps calculate the average sparsity of subgraphs in ScaLed vs. SEAL
+            # only intended for ScaLed model.
             print(f"Calculating preprocessing stats for {self.split}")
             if self.args.model == "SIGN":
                 raise NotImplementedError("calc_ratio not implemented for SIGN")
@@ -1074,8 +1076,8 @@ def run_sgrl_learning(args, device, hypertuning=False):
         else:
             data.x = extra_feats
         print(f"Adding custom features to ogbl-ddi. Total ogbl-ddi feats is {data.x.shape}")
-    
-    augment_ppa = False # this did not seem to improve the results for ppa, hence False
+
+    augment_ppa = False  # this did not seem to improve the results for ppa, hence False
     if args.dataset == 'ogbl-ppa' and augment_ppa:
         # https://github.com/lustoo/OGB_link_prediction
         from aug_helper import resource_allocation
