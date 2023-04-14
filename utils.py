@@ -452,35 +452,44 @@ def extract_enclosing_subgraphs(link_index, A, x, y, num_hops, node_label='drnl'
     data_list = []
 
     if sign_kwargs:
-        if powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['sign_type'] == 'hybrid':
-            # Keep in mind that in hybrid, you do not need to set sign_k to 5. Just set it at the individual level.
-            # ie; the operators per model you want. If you need 5 in total, use sign_k as 3. This is confusing,
-            # but, works.
-            # optimized hybrid (SoP + PoS) flow. We do not support non-optimized hybrid flow.
-            # PoS in hybrid is currently only vanilla PoS and not PoS Plus.
+        if sign_kwargs['k_heuristic'] and sign_kwargs['sign_type'] == 'hybrid':
+            if verbose:
+                print("Hybrid PoS Plus flow prep in progress.")
+            # hybrid flow. consumed up to sign_k operators per hop (up to num_hops).
+            # hybrid is presented as a clever alternative to learning which hop works best.
             sign_k = sign_kwargs['sign_k']
 
-            print("Prepping PoS (plus) data")
-            sup_data_list = OptimizedSignOperations.get_PoS_prepped_ds(link_index, num_hops, A, ratio_per_hop,
-                                                                       max_nodes_per_hop, directed, A_csc, x, y,
-                                                                       sign_kwargs, rw_kwargs, verbose=verbose,
-                                                                       node_label=node_label)
-            if sign_k == 1:
-                return sup_data_list
+            all_num_hops_data_list = [None for _ in range(num_hops)]
+            for hop in range(1, num_hops + 1, 1):
+                if verbose:
+                    print(f"Prepping PoS (plus) data for h={hop}")
+                all_num_hops_data_list[hop - 1] = OptimizedSignOperations.get_PoS_Plus_prepped_ds(link_index, hop,
+                                                                                                  A,
+                                                                                                  ratio_per_hop,
+                                                                                                  max_nodes_per_hop,
+                                                                                                  directed, A_csc, x, y,
+                                                                                                  sign_kwargs,
+                                                                                                  rw_kwargs,
+                                                                                                  verbose=verbose,
+                                                                                                  node_label=node_label)
 
-            print("Prepping SoP data")
-            sop_data_list = OptimizedSignOperations.get_SoP_prepped_ds(powers_of_A, link_index, A, x, y,
-                                                                       verbose=verbose)
+            sign_k_iterator_stop = (sign_k * num_hops) + 1
+            sign_k_iterator_start = sign_k + 1
+            if verbose:
+                print(f"Creating data object with total operators ={(sign_k * num_hops) + 1}")
+            for data_lists in tqdm(list(zip(*all_num_hops_data_list)), ncols=70):
+                data = data_lists[0]
+                data_list_index = 1
+                subtract = sign_k
+                data_list.append(data)
 
-            combined_data = []
-            for sup_data, pos_data in zip(sup_data_list, sop_data_list):
-                data = sup_data
+                for iter_k in range(sign_k_iterator_start, sign_k_iterator_stop, 1):
+                    setattr(data, f'x{iter_k}', data_lists[data_list_index][f"x{iter_k - subtract}"])
+                    if iter_k % sign_k == 0:
+                        data_list_index += 1
+                        subtract += sign_k
 
-                for k in range(sign_k + 1, sign_k * 2):
-                    data[f'x{k}'] = pos_data[f'x{k - sign_k + 1}']
-
-                combined_data.append(data)
-            return combined_data
+            return data_list
         elif powers_of_A and sign_kwargs['optimize_sign'] and sign_kwargs['k_heuristic']:
             # optimized SoP Plus flow
             sop_data_list = OptimizedSignOperations.get_SoP_plus_prepped_ds(powers_of_A, link_index, A, x, y,
