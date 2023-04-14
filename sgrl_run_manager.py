@@ -138,6 +138,7 @@ def sgrl_master_controller(config, results_json):
         all_inference_times_arr = []
         total_params_arr = []
         for run, seed in zip(range(1, runs + 1), seeds):
+            torch.cuda.empty_cache()
             kwargs.update(
                 {
                     "dataset": dataset,
