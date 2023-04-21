@@ -151,7 +151,7 @@ We support any PyG dataset. However, the below list covers all the datasets we u
 
 3) The OGB Dataset, for which this repo was mainly written.
 
-For datasets 1 and 2, we recommend running using https://github.com/venomouscyanide/S3GRL_OGB using the reproduction commands.
+For datasets 1 and 2, we recommend running using https://github.com/venomouscyanide/S3GRL using the reproduction commands.
 
 
 ## Reporting Issues and Improvements
@@ -165,7 +165,7 @@ If you have any further questions, you can reach out to us (the authors) via ema
 
 ### Reproducing Tables 2, 3 and 5
 
-Please check out https://github.com/venomouscyanide/S3GRL_OGB for reproducing Tables 2, 3 and 5 (Table 5 is just a reference to Table 4 in that repo).
+Please check out https://github.com/venomouscyanide/S3GRL for reproducing Tables 2, 3 and 5 (Table 5 is just a reference to Table 4 in that repo).
 
 ### Reproducting Table 4
 
