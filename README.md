@@ -4,16 +4,51 @@ S3GRL (Scalable Simplified Subgraph Representation Learning) is a subgraph repre
 
 N.B: This repository holds the codes required for extending https://github.com/venomouscyanide/S3GRL for the OGB datasets. The original repository for S3GRL (and the first version of the paper) does not support running on the OGB datasets.
 
-## Our Model (PoS Plus model) Results
+## Our Model (S3GRL, PoS Plus model) Results
 
 |          	| ogbl-collab  	| ogbl-ddi     	| ogbl-vessel  	| ogbl-citation2 	| ogbl-ppa 	|
 |----------	|--------------	|--------------	|--------------	|----------------	|----------	|
 |          	| HR@50        	| HR@20        	| roc-auc      	| MRR            	| HR@100   	|
-| PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| *              	| *        	|
+| PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| 88.14 ± 0.08    | *        	|
+
+"*" - this experiment is in the works.
+
+For reproducing the above results, run the following commands:
+
+### ogbl-collab
+
+`
+python sgrl_run_manager.py --config configs/ogbl/ogbl_collab.json --results_json ogbl_collab_results.json
+`
+
+### ogbl-ddi
+
+`
+python sgrl_run_manager.py --config configs/ogbl/ogbl_ddi.json --results_json ogbl_ddi_results.json
+`
+
+### ogbl-vessel
+
+`
+python sgrl_run_manager.py --config configs/ogbl/ogbl_vessel_signk_3.json --results_json ogbl_vessel_results.json
+`
+
+### ogbl-citation2
+
+`
+python sgrl_run_manager.py --config configs/ogbl/ogbl_citation2.json --results_json ogbl_citation2_results.json
+`
+
+### ogbl-ppa
+
+`
+python sgrl_run_manager.py --config configs/ogbl/ogbl_ppa.json --results_json ogbl_ppa_results.json
+`
 
 
 ## Citing Us/BibTex
 Please cite our work if you find it useful in any way.
+
 ```
 @misc{https://doi.org/10.48550/arxiv.2301.12562,
   doi = {10.48550/ARXIV.2301.12562},
@@ -28,7 +63,7 @@ Please cite our work if you find it useful in any way.
 
 ```
 
-The PDF of our preprint is available at https://arxiv.org/pdf/2301.12562.pdf
+The PDF of our preprint is available at https://arxiv.org/pdf/2301.12562.pdf.
 
 ## S3GRL architecture in brief
 <img width="1260" alt="Screenshot 2023-01-28 at 3 19 09 PM" src="https://user-images.githubusercontent.com/14299839/215289015-e437d5d5-9df7-48b4-842a-932d4a0c7fc2.png">
@@ -38,12 +73,13 @@ Our S3GRL framework: In the preprocessing phase (shown by the shaded blue arrow)
  is transformed by an MLP to a link probability $P_{uv}$.
 
 
-A higher quality architecture diagram can be found here: [SG3RL_arch.pdf](https://github.com/venomouscyanide/S3GRL/files/10528180/SG3RL_arch.pdf)
+A higher-quality architecture diagram can be found here: [SG3RL_arch.pdf](https://github.com/venomouscyanide/S3GRL/files/10528180/SG3RL_arch.pdf)
 
 
 ## Getting Started with the dev environment
 
-Some notable libraries and their versions are as follows:
+We use Python 3.8 for our experiments. Some notable Python libraries and their versions are as follows:
+
 - pytorch==1.13.0
 - scikit-learn==1.1.3
 - scipy==1.9.3
@@ -56,54 +92,56 @@ Some notable libraries and their versions are as follows:
 - ray==2.1.0
 
 
-Users can refer to the exact conda enviroment used for running all the experiments in https://github.com/venomouscyanide/S3GRL_OGB/blob/main/conda_env/s3grl_env.yml. If you have trouble setting up please raise an issue or reach out via email and we will be happy to assist. Also, if you have an M1-mac silicon please checkout https://github.com/venomouscyanide/S3GRL_OGB/blob/main/quick_install.sh.
+Users can refer to the exact conda enviroment used for running all the experiments in https://github.com/venomouscyanide/S3GRL_OGB/blob/main/conda_env/s3grl_env.yml. If you have trouble setting up please raise an issue or reach out via email and we will be happy to assist. Also, if you have an M1-mac silicon please check out https://github.com/venomouscyanide/S3GRL_OGB/blob/main/quick_install.sh.
 
 ## Configuration on which all experiments are run on
 
-For all the experiments, we use an Ubuntu server with 50-80 CPU cores, 11 Gb GTX 1080Ti GPU, 377 GB ram (with 500 Gigs of swap) and 2 Tb ROM.
+For all the experiments, we use an Ubuntu server with 50-80 CPU cores, 11 Gb GTX 1080Ti GPU, 377 GB ram (with 500 Gigs of swap) and 2 Tb ROM. 
+
+For supporting different hardware capacities, please try changing (to be higher or lower) the following parameters:
+
+- `batch_size` - controls the number of subgraphs in each mini-batch.
+- `hidden_channels` - controls the hidden dimensionality of the model.
+- `num_workers` - controls the number of workers utilized in PyTorch's Dataloader.
+- `num_hops` - controls the size of subgraphs extracted around each link.
+- `sign_k` - controls the number of operators created for each subgraph, for each link.
+
+All the above parameters will result in a higher computational load if increased.
 
 ## Running our codes
-All our codes can be run by setting a JSON configuration file. Example configuration files can be found in `configs/` or [here](https://github.com/venomouscyanide/S3GRL_OGB/blob/main/test_config.json). In this example, we run 10 runs of Cora with random seeds ranging from 1-10, with hidden dimensionality of the model set to 256, batch size 32 etc. with r=3,h=3 of the PoS model. Please see next section for details on each argument.
+All our codes can be run by setting a JSON configuration file. Example configuration files can be found in `configs/` or [here](https://github.com/venomouscyanide/S3GRL_OGB/blob/main/test_config.json). In this example, we run 10 runs of Cora with random seeds ranging from 1-10, with hidden dimensionality of the model set to 256, batch size 32, with r=3, h=3 of the PoS model. Please see the next section for details on each argument.
 
-Once you have the configuration JSON file setup, run our codes using `python sgrl_run_manager.py --config your_config_file_here.json --results_json your_result_file.json`. This command produces `your_result_file.json` which contains the averaged out efficacy score using the configuration on the dataset the experiments are being run on. 
+Once you have the configuration JSON file setup, run our codes using `python sgrl_run_manager.py --config your_config_file_here.json --results_json your_result_file.json`. This command produces `your_result_file.json` which contains the average-out efficacy score using the configuration on the dataset the experiments are being run on. 
 
 
 ## Arguments supported
 
-Currently, our S3GRL framework support two instances, **PoS** and **SoP**. Both instances are available in `tuned_SIGN.py`. You can add your own instances by modifying this file.
+Currently, our S3GRL framework supports two instances, **PoS** and **SoP**. Both instances are available in `tuned_SIGN.py`. You can add your own instances by modifying this file.
 
 Specific arguments related to our framework:
-- `sign_k` - The number of diffusion operators to create (corresponds to r in our paper).
-Setting this to a higher value increases the time taken for training/prep.
+- `sign_k` - The number of diffusion operators to create (corresponds to r in our paper). Setting this to a higher value increases the time taken for training/prep.
 
-- `sign_type` - Set the type of S3GRL model. Either PoS, SoP or hybrid.
-PoS is Powers of Subgraphs.
-SoP is Subgraphs of Powers.
-Hybrid is devised as a clever way to create `sign_k` number of operators for each hop in 1 to `num_hops` extractions. For example, if `sign_k` is 3 and `num_hops` is 3, for each hop subgraph, we create 3 operators each, for a total of 9 operators per subgraph. Currently hybrid mode is only used with PoS style learning.
+- `sign_type` - Set the type of S3GRL model. Either PoS, SoP or hybrid. PoS is Powers of Subgraphs. SoP is Subgraphs of Powers. Hybrid is devised as a clever way to create `sign_k` number of operators for each hop in 1 to `num_hops` extractions. For example, if `sign_k` is 3 and `num_hops` is 3, for each hop subgraph, we create 3 operators each, for a total of 9 operators per subgraph. Currently, hybrid mode is only used with PoS style learning.
 
-- `optimize_sign` - Choose to use optimized codes for running PoS or SoP. 
-Ideally, always set this to True. Optimized formulations is a way to drop unecessary rows in storage and is aimed at being faster ways of PoS/SoP learning with virtually no loss of generalization.
+- `optimize_sign` - Choose to use optimized codes for running PoS or SoP. Ideally, always set this to True. Optimized formulations are a way to drop unnecessary rows in storage and are aimed at being faster ways of PoS/SoP learning with virtually no loss of generalization.
 
-- `init_features` - Initialize features for non-attributed datasets. Our S3GRL models require initial node features to work. Choose between 'degree', 'eye' or 'n2v'.
-This is mainly aimed at the non-attributed datasets. Unlike SEAL, we do not support learnable node embeddings (e.g., DRNL is a trainable embedding look-up). As a result, the user need to supply the nodes with initial node embeddings for our models. 
+- `init_features` - Initialize features for non-attributed datasets. Our S3GRL models require initial node features to work. Choose between 'degree', 'eye' or 'n2v'. This is mainly aimed at the non-attributed datasets. Unlike SEAL, we do not support learnable node embeddings (e.g., DRNL is a trainable embedding lookup). As a result, the user needs to supply the nodes with initial node embeddings for our models. 
 
-- `k_heuristic` - Choose to use `CCN` (center-common-neighbor pooling) for the nodes other than source-target nodes.
-This boolean decides whether the `CCN` pooling is enabled for PoS or SoP. If `k_heuristic` is set to True, we also calculate the pooled values of the common neighbors for making the link prediction. 
+- `k_heuristic` - Choose to use `CCN` (center-common-neighbor pooling) for the nodes other than source-target nodes. This boolean decides whether the `CCN` pooling is enabled for PoS or SoP. If `k_heuristic` is set to True, we also calculate the pooled values of the common neighbors for making the link prediction. 
 
-- `k_node_set_strategy` - How to choose the nodes for `CCN`. Either intersection or union. Intersection means you choose the common  neighbors. Works when `k_heuristic` is True.
+- `k_node_set_strategy` - How to choose the nodes for `CCN`. Either intersection or union. Intersection means you choose the common neighbors. Works when `k_heuristic` is True. Even though the name given is common center pooling, you can set it between `union` or `intersection`. I.e., the intersection of the neighbors or unions of the neighbors of source-target nodes will be taken. In our paper, we use `CCN` which is synonymous with setting `k_node_set_strategy` to `intersection` (common neighbors are just an intersection of the set of connections to source and target nodes). Users can choose to use 'union' if common neighbors are not what they have in mind. Also, for this argument to be considered, you need to set `k_heuristic` to True to enable the Plus versions of PoS/SoP.
 
-Even though the name given is common center pooling, you can set it between `union` or `intersection`. I.e., intersection of the neighbors or unions of the neighbors of source-target nodes will be taken. In our paper, we use `CCN` which is synonymous with setting `k_node_set_strategy` to `intersection` (common neighbors is just an intersection of set of connections to source and targets). Users can choose to use 'union' is common-neighbors are not what they have in mind. Also, for this argument to be considered, you need to set `k_heuristic` to True to enable the Plus versions of Pos/SoP.
-
-- `k_pool_strategy` - How to pool the nodes other than source-target in the forward pass for `CCN` (the nodes you select using `k_node_set_strategy`).  Either mean, sum or max pooling. Works when `k_heuristic` is True.
-
-This decides how you want to pool the `union`/`intersection` of source and target node's neighbors. We use PyG mean, max or sum pooling for this. `mean` is usually used.
+- `k_pool_strategy` - How to pool the nodes other than source-target in the forward pass for `CCN` (the nodes you select using `k_node_set_strategy`).  Either mean, sum or max pooling. Works when `k_heuristic` is True. This decides how you want to pool the `union`/`intersection` of source and target nodes' neighbors. We use PyG's mean, max or sum pooling for this. `mean` and `sum` is usually consumed.
 
 - `init_representation` - Use an unsupervised model to train the initial features before running S3GRL. Choose between 'GIC', 'ARGVA', 'GAE', 'VGAE'.
 If you want to run an unsupervised model to further refine the initial nodal embeddings before running our models, use this. This is adapted from https://github.com/DaDaCheng/WalkPooling.
 
+- `dynamic_train`, `dynamic_val` and `dynamic_test` - This setting makes the code do the subgraph extractions and S3GRl's operators creation on the fly. This utilizes PyTorch's multiprocessing to do all calculations using multiprocessing. This means no preprocessing and saving S3GRL models data. This is aimed at being faster to see results per epoch. However, if you want to train for a large number of epochs, repeatedly calculating all operators per epoch could be taxing (you are essentially computing the same data for each epoch in dynamic mode). 
+
 Finally, please note that this work is a fork of https://github.com/facebookresearch/SEAL_OGB and carries over some of the original authors' arguments.
 
 ## Supported Datasets
+
 We support any PyG dataset. However, the below list covers all the datasets we use in our paper's experiments:
 
 1) Planetoid Dataset (Cora, PubMed, CiteSeer) from "Revisiting Semi-Supervised Learning with Graph Embeddings
@@ -111,28 +149,27 @@ We support any PyG dataset. However, the below list covers all the datasets we u
     
 2) SEAL datasets (USAir, Yeast etc. introduced in the original paper) from "Link prediction based on graph neural networks https://arxiv.org/pdf/1802.09691.pdf"
 
-3) The OGB Dataset, for which this repo was mainly written for.
+3) The OGB Dataset, for which this repo was mainly written.
 
-For datasets 1 and 2, we recomment running using https://github.com/venomouscyanide/S3GRL_OGB using the reproduction commands.
+For datasets 1 and 2, we recommend running using https://github.com/venomouscyanide/S3GRL_OGB using the reproduction commands.
 
 
 ## Reporting Issues and Improvements
-We currently don't have an issue/PR template. However, if you find an issue in our code please create an issue in GitHub. It would be great if you could give as much information regarding the issue as possible (what command was run, what are the python package versions, providing full stack trace etc.).  
+We currently don't have an issue/PR template. However, if you find an issue in our code please create an issue in GitHub. It would be great if you could give as much information regarding the issue as possible (what command was run, what are the Python package versions, providing full stack trace etc.).  
 
 If you have any further questions, you can reach out to us (the authors) via email and we will be happy to have a conversation. 
 [Paul Louis](mailto:paul.louis@ontariotechu.net), [Shweta Ann Jacob](mailto:shweta.jacob@ontariotechu.net)
 
 
-
 ## Reproducing the Paper's Tabular data
 
-### Reproducing Table 2, 3 and 5
+### Reproducing Tables 2, 3 and 5
 
-Please checkout https://github.com/venomouscyanide/S3GRL_OGB for reproducing Tables 2, 3 and 5 (Table 5 is just reference as Table 4 in that repo).
+Please check out https://github.com/venomouscyanide/S3GRL_OGB for reproducing Tables 2, 3 and 5 (Table 5 is just a reference to Table 4 in that repo).
 
 ### Reproducting Table 4
 
-Table 4 is the primarily reason why this repo exists. I.e, for running PoS Plus on the OGB datasets and Planetoid datasets in the fashion of BUDDY (https://github.com/melifluos/subgraph-sketching). 
+Table 4 is the primary reason why this repo exists. I.e, for running PoS Plus on the OGB datasets and Planetoid datasets in the fashion of BUDDY (https://github.com/melifluos/subgraph-sketching). 
 
 For running PoS Plus on the Planetoid datasets under the experimental settings set by Chamberlain et.al please use
 
@@ -151,12 +188,14 @@ Where * is any of the ogb dataset. See the [conf](https://github.com/venomouscya
 
 ## Acknowledgements
 
-The code for S3GRL is based off a clone of SEAL-OGB by Zhang et al. (https://github.com/facebookresearch/SEAL_OGB) and
-ScaLed by Louis et al. (https://github.com/venomouscyanide/ScaLed). 
+The code for S3GRL is based on a clone of SEAL-OGB by Zhang et al. (https://github.com/facebookresearch/SEAL_OGB) and ScaLed by Louis et al. (https://github.com/venomouscyanide/ScaLed). 
+
 The baseline softwares used are adapted from: 
 - GIC by Mavromatis et al. (https://github.com/cmavro/Graph-InfoClust-GIC)
 - WalkPool by Pan et al. (https://github.com/DaDaCheng/WalkPooling). 
+
 There are also some baseline model codes taken from :
 - OGB implementations (https://github.com/snap-stanford/ogb) 
-- and other Pytorch Geometric
-implementations (https://github.com/pyg-team/pytorch_geometric).
+- and other Pytorch Geometric implementations (https://github.com/pyg-team/pytorch_geometric).
+
+This repository also uses multiple methods and practices from other developers and researchers. We are thankful for their contributions to this field (and for releasing the codes). Whenever possible, we include a comment linking the sources used.
