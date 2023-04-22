@@ -204,4 +204,10 @@ There are also some baseline model codes taken from :
 - OGB implementations (https://github.com/snap-stanford/ogb) 
 - and other Pytorch Geometric implementations (https://github.com/pyg-team/pytorch_geometric).
 
+Some other libraries/projects that has helped us
+- https://github.com/chuanqichen/cs224w
+- https://github.com/lustoo/OGB_link_prediction
+- https://github.com/zhitao-wang/PLNLP
+- https://github.com/sangyx/gtrick
+
 This repository also uses multiple methods and practices from other developers and researchers. We are thankful for their contributions to this field (and for releasing the codes). Whenever possible, we include a comment linking the sources used.
