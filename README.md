@@ -33,6 +33,12 @@ python sgrl_run_manager.py --config configs/ogbl/ogbl_ddi.json --results_json og
 python sgrl_run_manager.py --config configs/ogbl/ogbl_vessel_signk_3.json --results_json ogbl_vessel_results.json
 `
 
+`ogbl-vessel` requires a pre-trained embedding file (pretrained n2v embeddings). This embedding file is concatenated with the initial 3-d nodal embeddings. Please download the file from https://drive.google.com/file/d/1b_lDPUQKRuT51tlt39XDEVQ_g8-KW_zr/ and place it in the folder `Emb`, creating the folder `Emb` if it does not exist. To the best of my knowledge, ogbl-vessel is the only dataset where there is a need to download pretrained embeddings first, and then run our codes. 
+
+This pretrained embedding file is created using [Julian McGinnis's](https://github.com/jqmcginnis) node2vec pretraining code available [here](https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py). You can run this script and rename the output to `pretrained_n2v_ogbl_vessel.pt` and place it in `Emb` as well. 
+
+See https://github.com/venomouscyanide/S3GRL_OGB/blob/main/sgrl_link_pred.py#L1093 for how pretrained n2v embeddings are consumed for `ogbl-vessel`.
+
 ### ogbl-citation2
 
 `
