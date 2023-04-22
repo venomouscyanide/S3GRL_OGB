@@ -210,5 +210,6 @@ Some other libraries/projects that has helped us
 - https://github.com/lustoo/OGB_link_prediction
 - https://github.com/zhitao-wang/PLNLP
 - https://github.com/sangyx/gtrick
+- https://github.com/snap-stanford/distance-encoding
 
 This repository also uses multiple methods and practices from other developers and researchers. We are thankful for their contributions to this field (and for releasing the codes). Whenever possible, we include a comment linking the sources used.
