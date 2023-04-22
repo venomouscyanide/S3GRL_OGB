@@ -96,6 +96,7 @@ We use Python 3.8 for our experiments. Some notable Python libraries and their v
 - ogb==1.3.5 (started out with 1.3.5 but we switched to 1.3.6 release during development)
 - networkx==2.8.8
 - ray==2.1.0
+- gtrick==0.0.dev2 
 
 
 Users can refer to the exact conda enviroment used for running all the experiments in https://github.com/venomouscyanide/S3GRL_OGB/blob/main/conda_env/s3grl_env.yml. If you have trouble setting up please raise an issue or reach out via email and we will be happy to assist. Also, if you have an M1-mac silicon please check out https://github.com/venomouscyanide/S3GRL_OGB/blob/main/quick_install.sh.
