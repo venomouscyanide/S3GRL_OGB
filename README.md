@@ -200,6 +200,7 @@ The code for S3GRL is based on a clone of SEAL-OGB by Zhang et al. (https://gith
 The baseline softwares used are adapted from: 
 - GIC by Mavromatis et al. (https://github.com/cmavro/Graph-InfoClust-GIC)
 - WalkPool by Pan et al. (https://github.com/DaDaCheng/WalkPooling). 
+- BUDDY/ELPH by Chamberlain et al. (https://github.com/melifluos/subgraph-sketching). We also used our own fork of this codebase to run BUDDY on ogbl-vessel available at https://github.com/venomouscyanide/subgraph-sketching.
 
 There are also some baseline model codes taken from :
 - OGB implementations (https://github.com/snap-stanford/ogb) 
