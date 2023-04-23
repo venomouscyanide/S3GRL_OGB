@@ -56,17 +56,14 @@ python sgrl_run_manager.py --config configs/ogbl/ogbl_ppa.json --results_json og
 Please cite our work if you find it useful in any way.
 
 ```
-@misc{https://doi.org/10.48550/arxiv.2301.12562,
-  doi = {10.48550/ARXIV.2301.12562},
-  url = {https://arxiv.org/abs/2301.12562},
-  author = {Louis, Paul and Jacob, Shweta Ann and Salehi-Abari, Amirali},
-  keywords = {Machine Learning (cs.LG), Social and Information Networks (cs.SI), FOS: Computer and information sciences, FOS: Computer and information sciences},
-  title = {Simplifying Subgraph Representation Learning for Scalable Link Prediction},
-  publisher = {arXiv},
-  year = {2023},
-  copyright = {arXiv.org perpetual, non-exclusive license}
+@misc{louis2023simplifying,
+      title={Simplifying Subgraph Representation Learning for Scalable Link Prediction}, 
+      author={Paul Louis and Shweta Ann Jacob and Amirali Salehi-Abari},
+      year={2023},
+      eprint={2301.12562},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
 }
-
 ```
 
 The PDF of our preprint is available at https://arxiv.org/pdf/2301.12562.pdf.
