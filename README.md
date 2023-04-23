@@ -145,7 +145,15 @@ If you want to run an unsupervised model to further refine the initial nodal emb
 
 - `dynamic_train`, `dynamic_val` and `dynamic_test` - This setting makes the code do the subgraph extractions and S3GRl's operators creation on the fly. This utilizes PyTorch's multiprocessing to do all calculations using multiprocessing. This means no preprocessing and saving S3GRL models data. This is aimed at being faster to see results per epoch. However, if you want to train for a large number of epochs, repeatedly calculating all operators per epoch could be taxing (you are essentially computing the same data for each epoch in dynamic mode). 
 
-Finally, please note that this work is a fork of https://github.com/facebookresearch/SEAL_OGB and carries over some of the original authors' arguments.
+- `normalize_feats` - A boolean that determines whether initial nodal features should be row normalized or not.
+
+- `edge_feature` - Uses the gtrick library to inject edge features. Can take values `cn`, `aa`, `ra` and `ad`. They correspond to common neighbor, adamic adar, resource allocation and anchor distance values for all edges.
+
+- `use_mlp` - Boolean value that determines whether to use a single weight or an MLP to learn the subgraph operators of S3GRL.
+
+- `split_by_year` - Boolean value that determines whether to take only training edges after the year 2010 in ogbl-collab. Only used when the dataset is ogbl-collab.
+
+Most of the other arguments like learning rate, epochs, batch size, num hops etc. are pretty self-explanatory. In case you need us to document more arguments, please let us know. Finally, please note that this work is a fork of https://github.com/facebookresearch/SEAL_OGB and carries over some of the original authors' arguments.
 
 ## Supported Datasets
 
