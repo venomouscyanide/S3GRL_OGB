@@ -209,6 +209,7 @@ Some other libraries/projects that has helped us
 - https://github.com/chuanqichen/cs224w
 - https://github.com/lustoo/OGB_link_prediction
 - https://github.com/zhitao-wang/PLNLP
+- https://github.com/yao8839836/ogb_report/
 - https://github.com/sangyx/gtrick
 - https://github.com/snap-stanford/distance-encoding
 - https://github.com/zhf3564859793/GDNN
