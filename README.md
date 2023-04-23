@@ -112,6 +112,7 @@ For supporting different hardware capacities, please try changing (to be higher 
 - `num_workers` - controls the number of workers utilized in PyTorch's Dataloader.
 - `num_hops` - controls the size of subgraphs extracted around each link.
 - `sign_k` - controls the number of operators created for each subgraph, for each link.
+- `cuda_device` - the index of your CUDA GPU that is to be used for training. In our case, we choose from 0, 1, 2 and 3 due to access to 4 NVIDIA GTX 1080 TIs. Depending upon your setup, number of GPUs and load on each GPU, you might want to revise the value of this parameter.  
 
 All the above parameters will result in a higher computational load if increased.
 
@@ -153,7 +154,20 @@ If you want to run an unsupervised model to further refine the initial nodal emb
 
 - `split_by_year` - Boolean value that determines whether to take only training edges after the year 2010 in ogbl-collab. Only used when the dataset is ogbl-collab.
 
+- `node_label` - Which labeling trick to be used to augment the nodal features while creating SoP or PoS operators. Choose between `zo` and `drnl`. `zo` is the zero-one labeling trick, whereas, `drnl` is the double-radius node labeling trick. 
+
+- `use_valedges_as_input` - Boolean value that is used to consume validation edges as part of the training set of edges. Ideally, this boolean results in 100% on the validation dataset split accuracy. Also, only really used for Planetoid and ogbl-collab datasets.
+
+- `delete_dataset` - Delete the dataset created for the run upon finishing. Helps save up disk space.
+
+- `model` - Underlying neural model for training subgraphs. Choose `SIGN` for our S3GRL framework.
+
+- `profile` - Boolean value, which when set will run the PyG profiler during training and inference. Must be training on a CUDA device for this. Expect some significant slowdowns due to overheads related to profiling.
+
+
 Most of the other arguments like learning rate, epochs, batch size, num hops etc. are pretty self-explanatory. In case you need us to document more arguments, please let us know. Finally, please note that this work is a fork of https://github.com/facebookresearch/SEAL_OGB and carries over some of the original authors' arguments.
+
+
 
 ## Supported Datasets
 
