@@ -173,7 +173,7 @@ For datasets 1 and 2, we recommend running using https://github.com/venomouscyan
 We currently don't have an issue/PR template. However, if you find an issue in our code please create an issue in GitHub. It would be great if you could give as much information regarding the issue as possible (what command was run, what are the Python package versions, providing full stack trace etc.).  
 
 If you have any further questions, you can reach out to us (the authors) via email and we will be happy to have a conversation. 
-[Paul Louis](mailto:paul.louis@ontariotechu.net), [Shweta Ann Jacob](mailto:shweta.jacob@ontariotechu.net)
+[Paul Louis](mailto:paul.louis@ontariotechu.net), [Shweta Ann Jacob](mailto:shweta.jacob@ontariotechu.net).
 
 
 ## Reproducing the Paper's Tabular data
