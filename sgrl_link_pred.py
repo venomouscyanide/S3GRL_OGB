@@ -989,6 +989,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         except Exception as e:
             print(str(e), "passing edge weight setting")
 
+    n2v_params = 0
     if init_features:
         print(f"Init features using: {init_features}")
 
@@ -1012,8 +1013,9 @@ def run_sgrl_learning(args, device, hypertuning=False):
         extra_identifier = ''
         if args.model == "SIGN":
             extra_identifier = f"{args.k_heuristic}{args.sign_type}{args.hidden_channels}{args.num_hops}"
-        data.x = node_2_vec_pretrain(args.dataset, data.edge_index, data.num_nodes, args.n2v_dim, args.seed, device,
-                                     args.epochs, hypertuning, extra_identifier)
+        data.x, n2v_params = node_2_vec_pretrain(args.dataset, data.edge_index, data.num_nodes, args.n2v_dim, args.seed,
+                                                 device,
+                                                 args.epochs, hypertuning, extra_identifier)
     elif init_features == "distance_matrix":
         # Taken from the authors of GDNN: https://github.com/zhf3564859793/GDNN
         import networkx as nx
@@ -1402,7 +1404,10 @@ def run_sgrl_learning(args, device, hypertuning=False):
         scd = lr_scheduler.ReduceLROnPlateau(optimizer, patience=10,
                                              min_lr=5e-5)
         total_params = sum(p.numel() for param in parameters for p in param)
+        if init_features == "n2v":
+            total_params += n2v_params
         print(f'Total number of parameters is {total_params}')
+
         if args.model == 'DGCNN':
             print(f'SortPooling k is set to {model.k}')
         with open(log_file, 'a') as f:

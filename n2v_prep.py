@@ -24,6 +24,10 @@ def node_2_vec_pretrain(dataset, edge_index, num_nodes, emb_dim, seed, device, e
     n2v = Node2Vec(edge_index, num_nodes=num_nodes, embedding_dim=emb_dim, walk_length=20,
                    context_size=10, walks_per_node=10,
                    num_negative_samples=1, p=1, q=1, sparse=True).to(device)
+
+    params = list(n2v.parameters())
+    n2v_params = sum(p.numel() for param in params for p in param)
+
     loader = n2v.loader(batch_size=32, shuffle=True)
     optimizer = torch.optim.SparseAdam(list(n2v.parameters()), lr=0.01)
     n2v.train()
@@ -52,4 +56,4 @@ def node_2_vec_pretrain(dataset, edge_index, num_nodes, emb_dim, seed, device, e
     print('Finish prepping n2v embeddings')
     if cache:
         torch.save(output, unique_identifier)
-    return output
+    return output, n2v_params
