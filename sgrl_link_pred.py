@@ -1,6 +1,7 @@
 from pathlib import Path
 from timeit import default_timer
 
+import gdown as gdown
 import numpy as np
 import torch
 import shutil
@@ -1092,7 +1093,15 @@ def run_sgrl_learning(args, device, hypertuning=False):
 
     if args.dataset == 'ogbl-vessel':
         # https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py
-        data.x = torch.cat([data.x, torch.load('Emb/pretrained_n2v_ogbl_vessel.pt', map_location=torch.device('cpu'))],
+        pretrained_file = "Emb/pretrained_n2v_ogbl_vessel.pt"
+
+        if not os.path.isfile(pretrained_file):
+            if not os.path.exists("Emb/"):
+                os.makedirs("Emb/")
+            url = "https://drive.google.com/uc?id=1b_lDPUQKRuT51tlt39XDEVQ_g8-KW_zr"
+            gdown.download(url, pretrained_file, quiet=False)
+
+        data.x = torch.cat([data.x, torch.load(pretrained_file, map_location=torch.device('cpu'))],
                            dim=-1)
         print(f"Concat pretrained n2v features to ogbl-vessel. Total ogbl-vessel feats is {data.x.shape}")
 
