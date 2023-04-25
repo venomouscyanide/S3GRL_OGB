@@ -18,8 +18,8 @@ def node_2_vec_pretrain(dataset, edge_index, num_nodes, emb_dim, seed, device, e
 
     unique_identifier = f"{emb_folder}/{dataset}_{emb_dim}_seed{seed}_{extra_identifier}.pt"
     if os.path.exists(unique_identifier) and cache:
-        print("Using cached n2v embeddings. Skipping n2v pretraining.")
-        return torch.load(unique_identifier, map_location=torch.device('cpu')).detach()
+        print("Using cached n2v embeddings. Skipping n2v pretraining. Parameters are not counted.")
+        return torch.load(unique_identifier, map_location=torch.device('cpu')).detach(), 0
 
     n2v = Node2Vec(edge_index, num_nodes=num_nodes, embedding_dim=emb_dim, walk_length=20,
                    context_size=10, walks_per_node=10,
