@@ -37,7 +37,7 @@ python sgrl_run_manager.py --config configs/ogbl/ogbl_ddi.json --results_json og
 python sgrl_run_manager.py --config configs/ogbl/ogbl_vessel_signk_3.json --results_json ogbl_vessel_results.json
 `
 
-`ogbl-vessel` requires a pre-trained embedding file (pretrained n2v embeddings). This embedding file is concatenated with the initial 3-d nodal embeddings. Please download the file from https://drive.google.com/file/d/1b_lDPUQKRuT51tlt39XDEVQ_g8-KW_zr/ and place it in the folder `Emb`, creating the folder `Emb` if it does not exist. To the best of my knowledge, ogbl-vessel is the only dataset where there is a need to download pretrained embeddings first, and then run our codes. 
+`ogbl-vessel` requires a pre-trained embedding file (pretrained n2v embeddings). This embedding file is concatenated with the initial 3-d nodal embeddings. Our S3GRL will automatically download this file (if file is not found on disk) before the training commences. To the best of our knowledge, ogbl-vessel is the only dataset where our code needs to download pretrained embeddings first (use of external data). 
 
 This pretrained embedding file is created using [Julian McGinnis's](https://github.com/jqmcginnis) node2vec pretraining code available [here](https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py). You can run this script and rename the output to `pretrained_n2v_ogbl_vessel.pt` and place it in `Emb` as well. 
 
@@ -98,6 +98,7 @@ We use Python 3.8 for our experiments. Some notable Python libraries and their v
 - networkx==2.8.8
 - ray==2.1.0
 - gtrick==0.0.dev2 
+- gdown==4.7.1 
 
 
 Users can refer to the exact conda enviroment used for running all the experiments in https://github.com/venomouscyanide/S3GRL_OGB/blob/main/conda_env/s3grl_env.yml. If you have trouble setting up please raise an issue or reach out via email and we will be happy to assist. Also, if you have an M1-mac silicon please check out https://github.com/venomouscyanide/S3GRL_OGB/blob/main/quick_install.sh.
