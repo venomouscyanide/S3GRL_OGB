@@ -13,6 +13,10 @@ N.B: This repository holds the codes required for extending https://github.com/v
 
 "*" - this experiment is in the works.
 
+`Disclaimer`: It is to be noted that the validation dataset split and the training dataset split for some datasets are not consumed in full. Due to some computational constraints, and to speed up the overall runs, we sometimes only consume a percentage of the training and validation splits provided by OGB. However, it is to be noted that the testing dataset split is always consumed in full (i.e., 100% of the testing dataset is always used for inference of our learnt models).
+
+Please see the values for `val_percent` and `train_percent` in our [configuration files](https://github.com/venomouscyanide/S3GRL_OGB/tree/main/configs/ogbl) provided. As stated above, `test_percent` is always 100%.
+
 For reproducing the above results, run the following commands:
 
 ### ogbl-collab
