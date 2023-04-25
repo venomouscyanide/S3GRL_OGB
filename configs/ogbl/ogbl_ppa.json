@@ -32,7 +32,7 @@
         "use_feature": true,
         "use_edge_weight": false,
         "lr": 0.00015,
-        "epochs": 10,
+        "epochs": 5,
         "runs": 1,
         "train_percent": 5,
         "val_percent": 25,
