@@ -40,7 +40,7 @@ python sgrl_run_manager.py --config configs/ogbl/ogbl_vessel_signk_3.json --resu
 
 This pretrained embedding file is created using [Julian McGinnis's](https://github.com/jqmcginnis) node2vec pretraining code available [here](https://github.com/snap-stanford/ogb/blob/master/examples/linkproppred/vessel/node2vec.py). You can run this script and rename the output to `pretrained_n2v_ogbl_vessel.pt` and place it in `Emb` as well. 
 
-See https://github.com/venomouscyanide/S3GRL_OGB/blob/main/sgrl_link_pred.py#L1093 for how pretrained n2v embeddings are consumed for `ogbl-vessel`.
+See https://github.com/venomouscyanide/S3GRL_OGB/blob/main/sgrl_link_pred.py#L1094 for how pretrained n2v embeddings are consumed for `ogbl-vessel`.
 
 ### ogbl-citation2
 
