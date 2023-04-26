@@ -6,12 +6,11 @@ N.B: This repository holds the codes required for extending https://github.com/v
 
 ## Our Model (S3GRL, PoS Plus model) Results
 
-|          	| ogbl-collab  	| ogbl-ddi     	| ogbl-vessel  	| ogbl-citation2 	| ogbl-ppa 	|
-|----------	|--------------	|--------------	|--------------	|----------------	|----------	|
-|          	| HR@50        	| HR@20        	| roc-auc      	| MRR            	| HR@100   	|
-| PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| 88.14 ± 0.08    | *        	|
+|          	| ogbl-collab  	| ogbl-ddi     	| ogbl-vessel  	| ogbl-citation2 	| ogbl-ppa 	  |
+|----------	|--------------	|--------------	|--------------	|----------------	|-------------|
+|          	| HR@50        	| HR@20        	| roc-auc      	| MRR            	| HR@100   	  |
+| PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| 88.14 ± 0.08    | 42.42 ± 1.80|
 
-"*" - this experiment is in the works.
 
 `Disclaimer`: It is to be noted that the validation dataset split and the training dataset split for some datasets are not consumed in full. Due to some computational constraints, and to speed up the overall runs, we sometimes only consume a percentage of the training and validation splits provided by OGB. However, it is to be noted that the testing dataset split is always consumed in full (i.e., 100% of the testing dataset is always used for inference of our learnt models).
 
@@ -123,6 +122,9 @@ All our codes can be run by setting a JSON configuration file. Example configura
 
 Once you have the configuration JSON file setup, run our codes using `python sgrl_run_manager.py --config your_config_file_here.json --results_json your_result_file.json`. This command produces `your_result_file.json` which contains the average-out efficacy score using the configuration on the dataset the experiments are being run on. 
 
+## Log files of our runs
+
+We also share the log files associated with all our runs [through Google Drive](https://drive.google.com/drive/u/0/folders/1bGHvSw_Epzezu7lWJb1QswaaRcfSZq1n). Users can take a look at the files contained within the folder to see how our models are run, with the kind of output that can be expected. The .log files in the shared folders contain the raw logs and the .json files contain the averaged-out results for each run along with the configuration for the run.
 
 ## Arguments supported
 
