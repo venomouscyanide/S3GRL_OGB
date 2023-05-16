@@ -6,11 +6,125 @@ N.B: This repository holds the codes required for extending https://github.com/v
 
 ## Our Model (S3GRL, PoS Plus model) Results
 
+We show the results for our model in both the paper's format and the OGB leaderboard format.
+
+### Results in the paper's format
+
 |          	| ogbl-collab  	| ogbl-ddi     	| ogbl-vessel  	| ogbl-citation2 	| ogbl-ppa 	  |
 |----------	|--------------	|--------------	|--------------	|----------------	|-------------|
 |          	| HR@50        	| HR@20        	| roc-auc      	| MRR            	| HR@100   	  |
 | PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| 88.14 ± 0.08    | 42.42 ± 1.80|
 
+### Results in the OGB leaderboard format
+You can also find our results for ogbl-collab, ogbl-vessel, ogbl-citation2 and ogbl-ppa showcased on the official OGB link prediction leaderboards [here](https://ogb.stanford.edu/docs/leader_linkprop/#ogbl-collab) (search for the term `S3GRL (PoS Plus)`).
+
+<table style="border-collapse: collapse; border: medium none; border-spacing: 0px;">
+	<tr>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			<b>Dataset</b>
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			<b>Test</b>
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			<b>Validation</b>
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			<b># params</b>
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			<b>Hardware</b>
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			<b>Ext. Data</b>
+		</td>
+	</tr>
+	<tr>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;" rowspan="4">
+			PoS Plus
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			ogbl-collab (HR@50)
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			0.6683 ± 0.0030
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			0.9861 ± 0.0006
+		</td>
+		<td style="text-align: right; padding-right: 3pt; padding-left: 3pt;">
+			5,913,025
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			GeForce GTX 1080 Ti (11 GB)
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			No
+		</td>
+	</tr>
+	<tr>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			ogbl-vessel (roc-auc)
+		</td>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;">
+			0.8056 ± 0.0006
+		</td>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;">
+			0.8065 ± 0.0022
+		</td>
+		<td style="text-align: right; padding-right: 3pt; padding-left: 3pt;">
+			2,382,849
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			GeForce GTX 1080 Ti (11 GB)
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			Yes
+		</td>
+	</tr>
+	<tr>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			ogbl-citation2 (MRR)
+		</td>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;">
+			0.8814 ± 0.0008
+		</td>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;">
+			0.8809 ± 0.0074
+		</td>
+		<td style="text-align: right; padding-right: 3pt; padding-left: 3pt;">
+			142,275,001
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			GeForce GTX 1080 Ti (11 GB)
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			No
+		</td>
+	</tr>
+	<tr>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			ogbl-ppa (HR@100)
+		</td>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;">
+			0.4242 ± 0.0180
+		</td>
+		<td style="text-align: center; padding-right: 3pt; padding-left: 3pt;">
+			0.6512 ± 0.0109
+		</td>
+		<td style="text-align: right; padding-right: 3pt; padding-left: 3pt;">
+			32,270,001
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			GeForce GTX 1080 Ti (11 GB)
+		</td>
+		<td style="padding-right: 3pt; padding-left: 3pt;">
+			No
+		</td>
+	</tr>
+</table>
 
 `Disclaimer`: It is to be noted that the validation dataset split and the training dataset split for some datasets are not consumed in full. Due to some computational constraints, and to speed up the overall runs, we sometimes only consume a percentage of the training and validation splits provided by OGB. However, it is to be noted that the testing dataset split is always consumed in full (i.e., 100% of the testing dataset is always used for inference of our learnt models).
 
