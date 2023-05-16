@@ -16,7 +16,7 @@ We show the results for our model in both the paper's format and the OGB leaderb
 | PoS Plus 	| 66.83 ± 0.30 	| 22.24 ± 3.36 	| 80.56 ± 0.06 	| 88.14 ± 0.08    | 42.42 ± 1.80|
 
 ### Results in the OGB leaderboard format
-You can also find our results for ogbl-collab, ogbl-vessel, ogbl-citation2 and ogbl-ppa showcased on the official OGB link prediction leaderboards [here](https://ogb.stanford.edu/docs/leader_linkprop/#ogbl-collab) (search for the term `S3GRL (PoS Plus)`).
+You can also find our results for ogbl-collab, ogbl-vessel, ogbl-citation2 and ogbl-ppa showcased on the official OGB link prediction leaderboards [here](https://ogb.stanford.edu/docs/leader_linkprop/) (search for the term `S3GRL (PoS Plus)`).
 
 <table style="border-collapse: collapse; border: medium none; border-spacing: 0px;">
 	<tr>
