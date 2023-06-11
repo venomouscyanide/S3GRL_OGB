@@ -314,7 +314,7 @@ If you have any further questions, you can reach out to us (the authors) via ema
 
 Please check out https://github.com/venomouscyanide/S3GRL for reproducing Tables 2, 3 and 5 (Table 5 is just a reference to Table 4 in that repo).
 
-### Reproducting Table 4
+### Reproducing Table 4
 
 Table 4 is the primary reason why this repo exists. I.e, for running PoS Plus on the OGB datasets and Planetoid datasets in the fashion of BUDDY (https://github.com/melifluos/subgraph-sketching). 
 
