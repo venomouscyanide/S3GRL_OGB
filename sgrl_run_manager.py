@@ -1,7 +1,9 @@
 import argparse
 import gc
 import json
+import os
 import pprint
+import shutil
 from collections import defaultdict
 from timeit import default_timer
 
@@ -234,6 +236,10 @@ def sgrl_master_controller_for_size(config, results_json):
         size_details = run_sgrl_learning(args, device)
 
         overall_size_details[dataset][identifier] = size_details
+
+        ds = 'dataset'
+        if os.path.exists(ds):
+            shutil.rmtree(ds)
 
         with open(results_json, 'w') as output_file:
             json.dump(overall_size_details, output_file)

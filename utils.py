@@ -894,23 +894,14 @@ def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False):
 
 
 # https://stackoverflow.com/a/39988702
-def convert_bytes(num):
-    """
-    this function will convert bytes to MB.... GB... etc
-    """
-    for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
-        if num < 1024.0:
-            return "%3.1f %s" % (num, x)
-        num /= 1024.0
-
-
-# https://stackoverflow.com/a/39988702
 def file_size(file_path):
     """
     this function will return the file size
     """
     if os.path.isfile(file_path):
-        file_info = os.stat(file_path)
-        return convert_bytes(file_info.st_size)
+        # https://stackoverflow.com/a/52684562
+        mb = f"{os.path.getsize(file_path) / (1 << 20):.2f} MB"
+        gb = f"{os.path.getsize(file_path) / (1 << 30):.2f} GB"
+        return mb, gb, os.path.getsize(file_path)
     else:
         raise FileNotFoundError
