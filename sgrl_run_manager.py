@@ -1,7 +1,10 @@
 import argparse
 import gc
 import json
+import os
 import pprint
+import shutil
+from collections import defaultdict
 from timeit import default_timer
 
 import torch
@@ -23,7 +26,7 @@ class SGRLArgumentParser:
                  seed, dataset_split_num, train_n2v, train_mf, sign_k, sign_type, pool_operatorwise, optimize_sign,
                  init_features, n2v_dim=256, k_heuristic=0, k_node_set_strategy="", k_pool_strategy="",
                  init_representation="", cache_dynamic=False, use_mlp=False, split_by_year=False, edge_feature="",
-                 normalize_feats=False):
+                 normalize_feats=False, size_only=False):
         # Data Settings
         self.dataset = dataset
         self.fast_split = fast_split
@@ -108,6 +111,7 @@ class SGRLArgumentParser:
         self.split_by_year = split_by_year
         self.edge_feature = edge_feature
         self.normalize_feats = normalize_feats
+        self.size_only = size_only
 
     def __str__(self):
         return pprint.pformat(self.__dict__)
@@ -198,13 +202,60 @@ def sgrl_master_controller(config, results_json):
             json.dump(exp_results, output_file)
 
 
+def sgrl_master_controller_for_size(config, results_json):
+    """
+    Wrapper to run SGRL methods to capture the size details of precomputed DS
+    """
+
+    with open(config) as config_file:
+        config = json.load(config_file)
+
+    overall_size_details = defaultdict(dict)
+
+    for identifier, ds_config in config['datasets'].items():
+        ds_params = ds_config['ds_params']
+        dataset = ds_params['dataset']
+
+        kwargs = ds_config['hyperparams_per_run']
+        kwargs.update(
+            {
+                "dataset": dataset,
+                "seed": 0,
+                "size_only": True
+            }
+        )
+        kwargs = ds_config['hyperparams_per_run']
+        device = torch.device(f'cuda:{kwargs["cuda_device"]}' if torch.cuda.is_available() else 'cpu')
+        print(f"Details of {dataset} with id {identifier} using device {device}")
+
+        device = torch.device(f'cuda:{kwargs["cuda_device"]}' if torch.cuda.is_available() else 'cpu')
+
+        args = SGRLArgumentParser(**kwargs)
+        args.device = device
+        seed_everything(args.seed)
+        size_details = run_sgrl_learning(args, device)
+
+        overall_size_details[dataset][identifier] = size_details
+
+        ds = 'dataset'
+        if os.path.exists(ds):
+            shutil.rmtree(ds)
+
+        with open(results_json, 'w') as output_file:
+            json.dump(overall_size_details, output_file)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='configs/ogbl/ogbl_citation2.json')
     parser.add_argument('--results_json', type=str, default='result.json')
+    parser.add_argument('--size_only', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
     config = args.config
     results_json = args.results_json
-    sgrl_master_controller(config, results_json)
+    if not args.size_only:
+        sgrl_master_controller(config, results_json)
+    else:
+        sgrl_master_controller_for_size(config, results_json)

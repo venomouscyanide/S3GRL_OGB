@@ -891,3 +891,17 @@ def local_neg_sample(pos_edges, num_nodes, num_neg, random_src=False):
         0, num_nodes, (num_neg * pos_edges.size(0),), dtype=torch.long)
 
     return torch.stack((neg_src, neg_dst), dim=-1)
+
+
+# https://stackoverflow.com/a/39988702
+def file_size(file_path):
+    """
+    this function will return the file size
+    """
+    if os.path.isfile(file_path):
+        # https://stackoverflow.com/a/52684562
+        mb = f"{os.path.getsize(file_path) / (1 << 20):.2f} MB"
+        gb = f"{os.path.getsize(file_path) / (1 << 30):.2f} GB"
+        return mb, gb, os.path.getsize(file_path)
+    else:
+        raise FileNotFoundError

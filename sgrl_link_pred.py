@@ -1,4 +1,5 @@
 from pathlib import Path
+from pprint import pprint
 from timeit import default_timer
 
 import gdown as gdown
@@ -46,7 +47,7 @@ from n2v_prep import node_2_vec_pretrain
 from profiler_utils import profile_helper
 # DO NOT REMOVE AA CN PPR IMPORTS
 from utils import get_pos_neg_edges, extract_enclosing_subgraphs, do_edge_split, Logger, AA, CN, PPR, calc_ratio_helper, \
-    create_rw_cache, adjust_lr
+    create_rw_cache, adjust_lr, file_size
 
 warnings.simplefilter('ignore', SparseEfficiencyWarning)
 warnings.simplefilter('ignore', FutureWarning)
@@ -1337,6 +1338,23 @@ def run_sgrl_learning(args, device, hypertuning=False):
     total_prep_time = time_for_prep_end - time_for_prep_start
     print(f"Total Prep time: {total_prep_time} sec")
 
+    if args.size_only:
+        train_file = train_dataset.processed_file_names
+        test_file = test_dataset.processed_file_names
+        val_file = val_dataset.processed_file_names
+
+        train_file_size = file_size(os.path.join(path, 'processed', train_file[0]))
+        test_file_size = file_size(os.path.join(path, 'processed', test_file[0]))
+        valid_file_size = file_size(os.path.join(path, 'processed', val_file[0]))
+
+        size_details = {
+            "Train Size": train_file_size,
+            "Test Size": test_file_size,
+            "Val Size": valid_file_size,
+        }
+
+        return size_details
+
     follow_batch = None
     if args.model == "SIGN":
         follow_batch = [f'x{index}' for index in range(1, args.sign_k + 1)]
@@ -1680,6 +1698,7 @@ if __name__ == '__main__':
     parser.add_argument('--split_by_year', action='store_true', default=False, required=False)
     parser.add_argument('--use_mlp', action='store_true', default=False, required=False)
     parser.add_argument('--normalize_feats', action='store_true', default=False, required=False)
+    parser.add_argument('--size_only', action='store_true', default=False, required=False)
 
     args = parser.parse_args()
 
