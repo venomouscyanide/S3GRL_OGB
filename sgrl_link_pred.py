@@ -1099,7 +1099,7 @@ def run_sgrl_learning(args, device, hypertuning=False):
         if not os.path.isfile(pretrained_file):
             if not os.path.exists("Emb/"):
                 os.makedirs("Emb/")
-            url = "https://drive.google.com/uc?id=1b_lDPUQKRuT51tlt39XDEVQ_g8-KW_zr"
+            url = "https://drive.google.com/uc?id=1YD7U_Umi8dsgejnI9r0rtfWq0iMaTr9A"
             gdown.download(url, pretrained_file, quiet=False)
 
         data.x = torch.cat([data.x, torch.load(pretrained_file, map_location=torch.device('cpu'))],
