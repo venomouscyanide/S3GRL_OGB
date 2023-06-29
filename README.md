@@ -240,7 +240,7 @@ Once you have the configuration JSON file setup, run our codes using `python sgr
 
 ## Log files of our runs
 
-We also share the log files associated with all our runs [through Google Drive](https://drive.google.com/drive/u/0/folders/1bGHvSw_Epzezu7lWJb1QswaaRcfSZq1n). Users can take a look at the files contained within the folder to see how our models are run, with the kind of output that can be expected. The .log files in the shared folders contain the raw logs and the .json files contain the averaged-out results for each run along with the configuration for the run.
+We also share the log files associated with all our runs [through Google Drive](https://drive.google.com/drive/folders/1c67GBDSi9J7g3UkkajgWaMmi5FchYWRa?usp=drive_link). Users can take a look at the files contained within the folder to see how our models are run, with the kind of output that can be expected. The .log files in the shared folders contain the raw logs and the .json files contain the averaged-out results for each run along with the configuration for the run.
 
 ## Arguments supported
 
